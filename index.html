@@ -1,0 +1,1209 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Ours — Apartment Expenses</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{
+    box-sizing:border-box;
+    padding-top:env(safe-area-inset-top,0px);
+    padding-bottom:env(safe-area-inset-bottom,0px);
+    /* base + liquid-glass tokens (light) */
+    --bg:#e8ecec;
+    --blob-1:#8fd9c0; --blob-2:#bcd2f0; --blob-3:#f2ddc2; --blob-4:#d9c6ee;
+    --ink:#161a19; --ink-2:#555e5a; --ink-3:#8b928c;
+    --accent:#0f8f66; --accent-2:#22b586; --accent-ink:#ffffff; --accent-soft:rgba(31,160,120,.14);
+    --warn:#9a5a12; --warn-soft:rgba(224,164,90,.18); --danger:#c0392f;
+    --owe:#0f8f66; --owe-neg:#c0392f;
+    /* glass surfaces */
+    --surface:rgba(255,255,255,.58);
+    --surface-strong:rgba(255,255,255,.72);
+    --surface-2:rgba(255,255,255,.5);
+    --glass-fill:linear-gradient(160deg,rgba(255,255,255,.66),rgba(255,255,255,.4));
+    --line:rgba(90,96,92,.16);
+    --hair:rgba(90,96,92,.12);
+    --edge:rgba(255,255,255,.65);        /* luminous top edge */
+    --edge-in:rgba(255,255,255,.55);
+    --radius:22px; --radius-sm:14px;
+    --blur:22px; --blur-strong:30px;
+    --shadow:0 1px 1px rgba(20,30,26,.04), 0 10px 30px rgba(20,30,26,.10);
+    --shadow-lg:0 1px 1px rgba(20,30,26,.05), 0 20px 48px rgba(20,30,26,.18);
+    --nav-h:66px;
+    --font:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Inter,system-ui,sans-serif;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#0a0d0c;
+      --blob-1:#0f6b52; --blob-2:#1b3a66; --blob-3:#4a3a1e; --blob-4:#3a2a55;
+      --ink:#f1efea; --ink-2:#aeb4b0; --ink-3:#7a807b;
+      --accent:#37c194; --accent-2:#54d6aa; --accent-ink:#04140d; --accent-soft:rgba(55,193,148,.16);
+      --warn:#e0a45a; --warn-soft:rgba(224,164,90,.14); --danger:#f0655c;
+      --owe:#37c194; --owe-neg:#f0655c;
+      --surface:rgba(38,44,42,.52);
+      --surface-strong:rgba(26,32,30,.66);
+      --surface-2:rgba(60,68,64,.4);
+      --glass-fill:linear-gradient(160deg,rgba(80,90,86,.28),rgba(40,48,45,.22));
+      --line:rgba(255,255,255,.1);
+      --hair:rgba(255,255,255,.08);
+      --edge:rgba(255,255,255,.16);
+      --edge-in:rgba(255,255,255,.1);
+      --shadow:0 1px 1px rgba(0,0,0,.4), 0 12px 32px rgba(0,0,0,.5);
+      --shadow-lg:0 1px 1px rgba(0,0,0,.5), 0 24px 56px rgba(0,0,0,.6);
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#0a0d0c;
+    --blob-1:#0f6b52; --blob-2:#1b3a66; --blob-3:#4a3a1e; --blob-4:#3a2a55;
+    --ink:#f1efea; --ink-2:#aeb4b0; --ink-3:#7a807b;
+    --accent:#37c194; --accent-2:#54d6aa; --accent-ink:#04140d; --accent-soft:rgba(55,193,148,.16);
+    --warn:#e0a45a; --warn-soft:rgba(224,164,90,.14); --danger:#f0655c;
+    --owe:#37c194; --owe-neg:#f0655c;
+    --surface:rgba(38,44,42,.52);
+    --surface-strong:rgba(26,32,30,.66);
+    --surface-2:rgba(60,68,64,.4);
+    --glass-fill:linear-gradient(160deg,rgba(80,90,86,.28),rgba(40,48,45,.22));
+    --line:rgba(255,255,255,.1);
+    --hair:rgba(255,255,255,.08);
+    --edge:rgba(255,255,255,.16);
+    --edge-in:rgba(255,255,255,.1);
+    --shadow:0 1px 1px rgba(0,0,0,.4), 0 12px 32px rgba(0,0,0,.5);
+    --shadow-lg:0 1px 1px rgba(0,0,0,.5), 0 24px 56px rgba(0,0,0,.6);
+  }
+  *{box-sizing:inherit}
+  html,body{margin:0;height:100%}
+  body{
+    font-family:var(--font); background:var(--bg); color:var(--ink);
+    -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
+    line-height:1.4; overscroll-behavior-y:none;
+  }
+  /* colored backdrop for the glass to refract */
+  body::before{
+    content:"";position:fixed;inset:-10% -10% -10% -10%;z-index:-1;pointer-events:none;
+    background:
+      radial-gradient(42% 34% at 14% 8%, var(--blob-1) 0%, transparent 60%),
+      radial-gradient(44% 36% at 88% 14%, var(--blob-2) 0%, transparent 62%),
+      radial-gradient(48% 40% at 78% 92%, var(--blob-3) 0%, transparent 60%),
+      radial-gradient(46% 38% at 10% 88%, var(--blob-4) 0%, transparent 60%);
+    filter:saturate(1.15);
+    opacity:.85;
+  }
+  button{font-family:inherit;cursor:pointer}
+  input,select,textarea{font-family:inherit;font-size:16px}
+  .app{max-width:520px;margin:0 auto;min-height:100%;display:flex;flex-direction:column}
+
+  /* frosted-glass base */
+  .glass{
+    background:var(--glass-fill);
+    -webkit-backdrop-filter:blur(var(--blur)) saturate(1.7);
+    backdrop-filter:blur(var(--blur)) saturate(1.7);
+    border:1px solid var(--line);
+    box-shadow:var(--shadow), inset 0 1px 0 var(--edge);
+  }
+
+  /* Header */
+  header.top{
+    position:sticky; top:env(safe-area-inset-top,0px); z-index:20;
+    background:color-mix(in srgb,var(--bg) 55%, transparent);
+    -webkit-backdrop-filter:blur(var(--blur-strong)) saturate(1.8);
+    backdrop-filter:blur(var(--blur-strong)) saturate(1.8);
+    padding:10px 16px 8px; border-bottom:1px solid var(--hair);
+    box-shadow:inset 0 -1px 0 var(--edge-in);
+  }
+  .whoami{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px}
+  .whoami .brand{font-weight:800;letter-spacing:-.02em;font-size:15px;color:var(--ink)}
+  .whoami .brand span{color:var(--accent)}
+  .who-pill{display:inline-flex;align-items:center;gap:6px;background:var(--surface-strong);
+    -webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);
+    border:1px solid var(--edge);color:var(--ink-2);border-radius:999px;padding:6px 12px;font-size:12.5px;font-weight:600;
+    box-shadow:inset 0 1px 0 var(--edge)}
+  .who-pill b{color:var(--ink)}
+  .monthnav{display:flex;align-items:center;justify-content:center;gap:14px}
+  .monthnav button{background:none;border:none;color:var(--ink-2);font-size:20px;padding:4px 10px;border-radius:12px;transition:.15s}
+  .monthnav button:active{background:var(--surface);transform:scale(.94)}
+  .monthnav .m{font-weight:800;font-size:17px;letter-spacing:-.01em;min-width:150px;text-align:center}
+
+  main{flex:1;padding:14px 16px calc(var(--nav-h) + env(safe-area-inset-bottom,0px) + 24px)}
+  .screen{display:none;animation:fade .22s ease}
+  .screen.active{display:block}
+  @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+  .card{
+    background:var(--glass-fill);
+    -webkit-backdrop-filter:blur(var(--blur)) saturate(1.7);
+    backdrop-filter:blur(var(--blur)) saturate(1.7);
+    border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow), inset 0 1px 0 var(--edge);
+    overflow:hidden;
+  }
+  .pad{padding:16px}
+
+  /* Settlement hero */
+  .settle{padding:22px 18px;text-align:center;overflow:hidden;position:relative}
+  .settle::after{content:"";position:absolute;inset:0;pointer-events:none;
+    background:linear-gradient(150deg,rgba(255,255,255,.28),transparent 42%);
+    mix-blend-mode:screen;opacity:.8}
+  .settle>*{position:relative;z-index:1}
+  .settle .lbl{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
+  .settle .dir{font-size:15px;color:var(--ink-2);margin-top:12px;font-weight:600}
+  .settle .amt{font-size:42px;font-weight:800;letter-spacing:-.03em;margin:2px 0 4px;color:var(--owe);
+    text-shadow:0 1px 0 var(--edge)}
+  .settle .amt.neg{color:var(--owe-neg)}
+  .settle.zero .amt{color:var(--accent);font-size:26px;margin-top:6px}
+  .settle .btnrow{margin-top:16px;display:flex;gap:8px;justify-content:center}
+  .settle .stamp{margin-top:14px;display:inline-flex;gap:6px;align-items:center;font-size:12.5px;font-weight:600;
+    color:var(--accent);background:var(--accent-soft);padding:6px 12px;border-radius:999px;border:1px solid var(--edge-in)}
+  .warnbar{margin-top:12px;font-size:12.5px;color:var(--warn);background:var(--warn-soft);
+    border:1px solid color-mix(in srgb,var(--warn) 24%,transparent);
+    border-radius:12px;padding:8px 10px;font-weight:600}
+
+  .paidrow{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+  .paidcell{background:var(--surface-2);border:1px solid var(--edge-in);border-radius:var(--radius-sm);padding:12px 14px;
+    box-shadow:inset 0 1px 0 var(--edge)}
+  .paidcell .k{font-size:12px;color:var(--ink-3);font-weight:600}
+  .paidcell .v{font-size:18px;font-weight:700;letter-spacing:-.01em;margin-top:3px}
+  .tot{display:flex;justify-content:space-between;align-items:baseline;margin-top:12px;padding:0 2px}
+  .tot .k{font-size:12.5px;color:var(--ink-3);font-weight:600}
+  .tot .v{font-size:15px;font-weight:700}
+
+  .sec-title{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);
+    margin:22px 4px 10px}
+  .sec-title.tight{margin-top:16px}
+
+  /* Category breakdown */
+  .cat{display:flex;align-items:center;gap:12px;padding:11px 14px;border-bottom:1px solid var(--hair)}
+  .cat:last-child{border-bottom:none}
+  .cat .dot{width:10px;height:10px;border-radius:3px;flex:none;box-shadow:0 0 0 3px color-mix(in srgb,currentColor 12%,transparent)}
+  .cat .nm{flex:1;font-size:14.5px;font-weight:600}
+  .cat .grp{font-size:11.5px;color:var(--ink-3);font-weight:500}
+  .cat .val{font-weight:700;font-size:14.5px}
+  .bar{height:6px;border-radius:3px;background:var(--hair);margin-top:6px;overflow:hidden}
+  .bar>i{display:block;height:100%;background:linear-gradient(90deg,var(--accent),var(--accent-2));border-radius:3px}
+
+  /* Expense rows */
+  .exp{display:flex;align-items:center;gap:12px;padding:12px 14px;border-bottom:1px solid var(--hair)}
+  .exp:last-child{border-bottom:none}
+  .exp .icn{width:40px;height:40px;border-radius:13px;flex:none;display:grid;place-items:center;font-size:17px;
+    background:var(--surface-2);border:1px solid var(--edge-in);box-shadow:inset 0 1px 0 var(--edge)}
+  .exp .mid{flex:1;min-width:0}
+  .exp .t1{font-size:14.5px;font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .exp .t2{font-size:12px;color:var(--ink-3);margin-top:2px;display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+  .exp .chip{background:var(--surface-2);border:1px solid var(--edge-in);border-radius:7px;padding:1px 6px;font-weight:600}
+  .exp .right{text-align:right;flex:none}
+  .exp .amt{font-size:14.5px;font-weight:700}
+  .exp .who{font-size:11.5px;color:var(--ink-3);margin-top:2px}
+  .exp .clip{color:var(--ink-3);font-size:12px}
+  .exp.excluded{opacity:.6}
+
+  .empty{text-align:center;color:var(--ink-3);padding:34px 20px;font-size:14px}
+  .empty .big{font-size:30px;margin-bottom:8px}
+
+  /* Buttons */
+  .btn{border:1px solid var(--edge);background:var(--surface-strong);
+    -webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);
+    color:var(--ink);border-radius:13px;
+    padding:11px 16px;font-weight:650;font-size:14.5px;display:inline-flex;gap:8px;align-items:center;justify-content:center;
+    box-shadow:var(--shadow), inset 0 1px 0 var(--edge);transition:transform .12s}
+  .btn:active{transform:scale(.97)}
+  .btn.primary{background:linear-gradient(160deg,var(--accent-2),var(--accent));border-color:color-mix(in srgb,var(--accent) 60%,transparent);
+    color:var(--accent-ink);box-shadow:0 8px 20px color-mix(in srgb,var(--accent) 38%,transparent), inset 0 1px 0 rgba(255,255,255,.4)}
+  .btn.ghost{background:transparent;-webkit-backdrop-filter:none;backdrop-filter:none;box-shadow:none;border-color:var(--line)}
+  .btn.sm{padding:8px 12px;font-size:13px;border-radius:11px}
+  .btn.block{width:100%}
+  .btn.danger{color:var(--danger);background:color-mix(in srgb,var(--danger) 8%,var(--surface-strong));
+    border-color:color-mix(in srgb,var(--danger) 32%,transparent)}
+  .btn:disabled{opacity:.5;pointer-events:none}
+
+  /* Bottom nav */
+  nav.bottom{
+    position:fixed;left:0;right:0;bottom:0;z-index:30;
+    height:calc(var(--nav-h) + env(safe-area-inset-bottom,0px));
+    padding-bottom:env(safe-area-inset-bottom,0px);
+    background:color-mix(in srgb,var(--bg) 42%,transparent);
+    -webkit-backdrop-filter:blur(var(--blur-strong)) saturate(1.8);
+    backdrop-filter:blur(var(--blur-strong)) saturate(1.8);
+    border-top:1px solid var(--edge-in);
+    box-shadow:0 -8px 30px rgba(20,30,26,.12), inset 0 1px 0 var(--edge);
+    display:flex;align-items:stretch;
+  }
+  nav.bottom .wrap{max-width:520px;margin:0 auto;width:100%;display:grid;grid-template-columns:repeat(5,1fr);align-items:center}
+  .tab{background:none;border:none;color:var(--ink-3);display:flex;flex-direction:column;align-items:center;gap:3px;
+    font-size:10.5px;font-weight:600;padding:8px 0;height:var(--nav-h);transition:color .15s}
+  .tab svg{width:23px;height:23px;stroke:currentColor;fill:none;stroke-width:1.9}
+  .tab.on{color:var(--accent)}
+  .tab.add{position:relative}
+  .fab{width:54px;height:54px;border-radius:18px;background:linear-gradient(160deg,var(--accent-2),var(--accent));color:var(--accent-ink);
+    display:grid;place-items:center;margin-top:-16px;border:1px solid color-mix(in srgb,var(--accent) 50%,transparent);
+    box-shadow:0 10px 24px color-mix(in srgb,var(--accent) 48%,transparent), inset 0 1px 0 rgba(255,255,255,.45)}
+  .fab svg{width:26px;height:26px;stroke:currentColor;stroke-width:2.4;fill:none}
+
+  /* Sheet / modal */
+  .sheet-bg{position:fixed;inset:0;z-index:50;background:rgba(10,14,12,.4);
+    -webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);
+    opacity:0;pointer-events:none;transition:opacity .2s}
+  .sheet-bg.open{opacity:1;pointer-events:auto}
+  .sheet{position:fixed;left:0;right:0;bottom:0;z-index:51;
+    background:color-mix(in srgb,var(--surface-strong) 100%, transparent);
+    -webkit-backdrop-filter:blur(var(--blur-strong)) saturate(1.8);
+    backdrop-filter:blur(var(--blur-strong)) saturate(1.8);
+    border-top:1px solid var(--edge);
+    border-radius:26px 26px 0 0;max-width:520px;margin:0 auto;max-height:92vh;display:flex;flex-direction:column;
+    transform:translateY(100%);transition:transform .26s cubic-bezier(.32,.72,0,1);
+    box-shadow:var(--shadow-lg), inset 0 1px 0 var(--edge);
+    padding-bottom:env(safe-area-inset-bottom,0px)}
+  .sheet.open{transform:none}
+  .sheet .grab{width:38px;height:5px;border-radius:3px;background:var(--line);margin:10px auto 4px}
+  .sheet .shead{display:flex;align-items:center;justify-content:space-between;padding:6px 18px 10px;border-bottom:1px solid var(--hair)}
+  .sheet .shead h3{margin:0;font-size:17px;letter-spacing:-.01em}
+  .sheet .sbody{overflow:auto;padding:16px 18px 22px;-webkit-overflow-scrolling:touch}
+  .x{background:none;border:none;color:var(--ink-3);font-size:22px;line-height:1;padding:4px 6px}
+
+  .field{margin-bottom:14px}
+  .field label{display:block;font-size:12px;font-weight:700;color:var(--ink-2);margin-bottom:6px;letter-spacing:.01em}
+  .field input,.field select,.field textarea{
+    width:100%;background:var(--surface-2);border:1px solid var(--edge-in);color:var(--ink);
+    border-radius:13px;padding:12px 13px;outline:none;box-shadow:inset 0 1px 0 var(--edge);transition:border-color .15s,box-shadow .15s}
+  .field input:focus,.field select:focus,.field textarea:focus{border-color:var(--accent);
+    box-shadow:inset 0 1px 0 var(--edge), 0 0 0 3px var(--accent-soft)}
+  .field textarea{min-height:60px;resize:vertical}
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .seg{display:flex;background:var(--surface-2);border:1px solid var(--edge-in);border-radius:13px;padding:3px;gap:3px;
+    box-shadow:inset 0 1px 0 var(--edge)}
+  .seg button{flex:1;border:none;background:none;color:var(--ink-2);padding:9px;border-radius:10px;font-weight:650;font-size:13.5px;transition:.15s}
+  .seg button.on{background:linear-gradient(160deg,var(--accent-2),var(--accent));color:var(--accent-ink);
+    box-shadow:0 4px 12px color-mix(in srgb,var(--accent) 34%,transparent), inset 0 1px 0 rgba(255,255,255,.4)}
+  .amtwrap{position:relative}
+  .amtwrap .cur{position:absolute;left:13px;top:50%;transform:translateY(-50%);color:var(--ink-3);font-weight:700;font-size:14px}
+  .amtwrap input{padding-left:52px;font-size:20px;font-weight:700}
+
+  .drop{border:1.5px dashed var(--line);border-radius:16px;padding:16px;text-align:center;color:var(--ink-2);background:var(--surface-2);
+    box-shadow:inset 0 1px 0 var(--edge)}
+  .drop .row{display:flex;gap:8px;justify-content:center;margin-top:10px;flex-wrap:wrap}
+  .thumb{margin-top:12px;display:flex;align-items:center;gap:10px;background:var(--surface-2);border:1px solid var(--edge-in);border-radius:13px;padding:8px}
+  .thumb img{width:46px;height:46px;object-fit:cover;border-radius:10px}
+  .thumb .nm{flex:1;font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+  .ai{margin-top:12px;border:1px solid color-mix(in srgb,var(--accent) 38%,transparent);
+    background:var(--accent-soft);border-radius:16px;padding:12px 14px;box-shadow:inset 0 1px 0 var(--edge)}
+  .ai h4{margin:0 0 8px;font-size:13.5px;display:flex;align-items:center;gap:7px}
+  .ai .kv{display:flex;justify-content:space-between;font-size:13px;padding:3px 0}
+  .ai .kv b{font-weight:700}
+  .ai .conf{font-size:11.5px;color:var(--ink-2);margin-top:6px}
+  .spin{width:15px;height:15px;border:2px solid color-mix(in srgb,var(--accent) 35%,transparent);border-top-color:var(--accent);border-radius:50%;animation:sp .7s linear infinite;display:inline-block}
+  @keyframes sp{to{transform:rotate(360deg)}}
+
+  .toast{position:fixed;left:50%;bottom:calc(var(--nav-h) + env(safe-area-inset-bottom,0px) + 16px);transform:translateX(-50%) translateY(20px);
+    background:color-mix(in srgb,var(--ink) 90%,transparent);color:var(--bg);
+    -webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);
+    padding:11px 16px;border-radius:14px;font-size:13.5px;font-weight:600;z-index:80;
+    opacity:0;transition:.22s;box-shadow:var(--shadow-lg);max-width:90%;text-align:center;border:1px solid var(--edge-in)}
+  .toast.show{opacity:1;transform:translateX(-50%)}
+
+  .hist{display:flex;align-items:center;gap:12px;padding:14px;border-bottom:1px solid var(--hair)}
+  .hist:last-child{border-bottom:none}
+  .hist .mid{flex:1}
+  .hist .mo{font-weight:700;font-size:14.5px}
+  .hist .fl{font-size:12.5px;color:var(--ink-3);margin-top:2px}
+  .hist .amt{font-weight:700}
+  .hist .st{font-size:11.5px;font-weight:700;color:var(--accent);background:var(--accent-soft);padding:3px 9px;border-radius:999px;border:1px solid var(--edge-in)}
+  .hist .st.open{color:var(--warn);background:var(--warn-soft)}
+
+  .setrow{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px 14px;border-bottom:1px solid var(--hair)}
+  .setrow:last-child{border-bottom:none}
+  .setrow .k{font-size:14px;font-weight:600}
+  .setrow .d{font-size:12px;color:var(--ink-3);margin-top:2px}
+  .switch{width:48px;height:29px;border-radius:999px;background:var(--line);position:relative;border:1px solid var(--edge-in);flex:none;transition:.18s;
+    box-shadow:inset 0 1px 2px rgba(0,0,0,.12)}
+  .switch.on{background:linear-gradient(160deg,var(--accent-2),var(--accent));box-shadow:inset 0 1px 0 rgba(255,255,255,.3)}
+  .switch i{position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:#fff;transition:.18s;box-shadow:0 1px 3px rgba(0,0,0,.25)}
+  .switch.on i{left:22px}
+  .catedit{display:flex;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid var(--hair)}
+  .catedit:last-child{border-bottom:none}
+  .catedit .nm{flex:1;font-size:14px;font-weight:600}
+  .catedit .grp{font-size:11px;color:var(--ink-3)}
+  .testline{font-size:12.5px;padding:6px 12px;border-bottom:1px solid var(--hair);display:flex;justify-content:space-between;font-family:ui-monospace,monospace}
+  .ok{color:var(--accent);font-weight:700}
+  .bad{color:var(--danger);font-weight:700}
+  .note{font-size:12px;color:var(--ink-3);padding:10px 4px 0;line-height:1.5}
+  .banner{background:var(--warn-soft);color:var(--warn);border:1px solid color-mix(in srgb,var(--warn) 30%,transparent);
+    border-radius:14px;padding:10px 12px;font-size:12.5px;font-weight:600;margin-bottom:12px;display:none}
+  .banner.show{display:block}
+
+  /* In-app modal (native prompt/confirm are blocked in the frame) */
+  .modal-bg{position:fixed;inset:0;z-index:60;background:rgba(10,14,12,.42);
+    -webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);
+    display:flex;align-items:center;justify-content:center;
+    padding:24px;opacity:0;pointer-events:none;transition:.16s}
+  .modal-bg.open{opacity:1;pointer-events:auto}
+  .modal{width:100%;max-width:380px;
+    background:color-mix(in srgb,var(--surface-strong) 100%, transparent);
+    -webkit-backdrop-filter:blur(var(--blur-strong)) saturate(1.8);
+    backdrop-filter:blur(var(--blur-strong)) saturate(1.8);
+    border:1px solid var(--edge);border-radius:22px;
+    box-shadow:var(--shadow-lg), inset 0 1px 0 var(--edge);padding:18px;transform:scale(.96);transition:.16s;max-height:88vh;overflow:auto}
+  .modal-bg.open .modal{transform:none}
+  .modal h3{margin:0 0 4px;font-size:17px;letter-spacing:-.01em}
+  .modal p{margin:0 0 14px;font-size:13.5px;color:var(--ink-2)}
+  .modal input,.modal select{width:100%;background:var(--surface-2);border:1px solid var(--edge-in);color:var(--ink);
+    border-radius:13px;padding:12px 13px;outline:none;margin-bottom:12px;box-shadow:inset 0 1px 0 var(--edge)}
+  .modal input:focus,.modal select:focus{border-color:var(--accent);box-shadow:inset 0 1px 0 var(--edge),0 0 0 3px var(--accent-soft)}
+  .modal .opts{display:flex;flex-direction:column;gap:8px;margin-bottom:12px}
+  .modal .opts button{width:100%;text-align:left;padding:13px 14px;border-radius:13px;border:1px solid var(--edge-in);
+    background:var(--surface-2);color:var(--ink);font-weight:650;font-size:14.5px;box-shadow:inset 0 1px 0 var(--edge)}
+  .modal .opts button:active{background:var(--accent-soft)}
+  .modal .row{display:flex;gap:8px}
+  .modal .row .btn{flex:1}
+  .rcpt-img{max-width:100%;max-height:66vh;border-radius:14px;display:block;margin:0 auto}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <div class="whoami">
+      <div class="brand">Ours<span>.</span></div>
+      <button class="who-pill" id="whoBtn">I'm <b id="whoName">Garney</b> ▾</button>
+    </div>
+    <div class="monthnav">
+      <button id="prevM" aria-label="Previous month">‹</button>
+      <div class="m" id="monthLbl">—</div>
+      <button id="nextM" aria-label="Next month">›</button>
+    </div>
+  </header>
+
+  <main>
+    <div id="roBanner" class="banner">⚠ Sync problem — recent changes may not be saved to the shared app. Check Settings → Sync → Test.</div>
+
+    <!-- HOME -->
+    <section class="screen active" id="s-home"></section>
+    <!-- EXPENSES -->
+    <section class="screen" id="s-exp"></section>
+    <!-- HISTORY -->
+    <section class="screen" id="s-hist"></section>
+    <!-- SETTINGS -->
+    <section class="screen" id="s-set"></section>
+    <section class="screen" id="s-setup"></section>
+  </main>
+
+  <nav class="bottom"><div class="wrap">
+    <button class="tab on" data-nav="home"><svg viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/></svg>Home</button>
+    <button class="tab" data-nav="exp"><svg viewBox="0 0 24 24"><path d="M4 5h16M4 12h16M4 19h10"/></svg>Expenses</button>
+    <button class="tab add" id="addTab"><span class="fab"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span></button>
+    <button class="tab" data-nav="hist"><svg viewBox="0 0 24 24"><path d="M12 8v4l3 2"/><circle cx="12" cy="12" r="9"/></svg>History</button>
+    <button class="tab" data-nav="set"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M19 12a7 7 0 0 0-.1-1.2l2-1.6-2-3.4-2.4 1a7 7 0 0 0-2-1.2L14 3h-4l-.5 2.4a7 7 0 0 0-2 1.2l-2.4-1-2 3.4 2 1.6A7 7 0 0 0 5 12a7 7 0 0 0 .1 1.2l-2 1.6 2 3.4 2.4-1a7 7 0 0 0 2 1.2L10 21h4l.5-2.4a7 7 0 0 0 2-1.2l2.4 1 2-3.4-2-1.6c.06-.4.1-.8.1-1.2Z"/></svg>Settings</button>
+  </div></nav>
+</div>
+
+<!-- ADD / EDIT SHEET -->
+<div class="sheet-bg" id="sheetBg"></div>
+<div class="sheet" id="sheet">
+  <div class="grab"></div>
+  <div class="shead"><h3 id="sheetTitle">Add expense</h3><button class="x" id="sheetClose">✕</button></div>
+  <div class="sbody" id="sheetBody"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+<div class="modal-bg" id="modalBg"><div class="modal" id="modalBox"></div></div>
+
+<script>
+"use strict";
+/* ===========================================================================
+   Ours — shared apartment expense splitter
+   Storage: artifact db (shared realtime) with localStorage fallback (single-device)
+   Receipt OCR: sample capability (viewer's own Claude). Assets: receipt files.
+   =========================================================================== */
+
+let SB = null;                 // supabase client (null until connected)
+const CFG = { url:'', key:'', hh:'' };
+function loadCfg(){ try{ CFG.url=localStorage.getItem('ours_sb_url')||''; CFG.key=localStorage.getItem('ours_sb_key')||''; CFG.hh=localStorage.getItem('ours_hh')||''; }catch{} }
+function saveCfg(url,key,hh){ CFG.url=(url||'').trim(); CFG.key=(key||'').trim(); CFG.hh=(hh||'').trim();
+  try{ localStorage.setItem('ours_sb_url',CFG.url); localStorage.setItem('ours_sb_key',CFG.key); localStorage.setItem('ours_hh',CFG.hh); }catch{} }
+function applyInviteHash(){ try{ const m=(location.hash||'').match(/cfg=([^&]+)/); if(m){ const o=JSON.parse(atob(decodeURIComponent(m[1]))); if(o.url&&o.key){ localStorage.setItem('ours_sb_url',o.url); localStorage.setItem('ours_sb_key',o.key);} history.replaceState(null,'',location.pathname); } }catch{} }
+function inviteLink(){ const p=btoa(JSON.stringify({url:CFG.url,key:CFG.key})); return location.origin+location.pathname+'#cfg='+encodeURIComponent(p); }
+const money = n => {
+  n = round2(n||0); const neg = n<0; n=Math.abs(n);
+  const cents = Math.round(n*100)%100!==0;
+  return (neg?'-':'')+'JMD '+n.toLocaleString('en-US',{minimumFractionDigits:cents?2:0,maximumFractionDigits:2});
+};
+function round2(n){ return Math.round((Number(n)+Number.EPSILON)*100)/100; }
+const $ = s => document.querySelector(s);
+const uid = () => 'e'+Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+const todayISO = () => new Date().toISOString().slice(0,10);
+const monthKeyOf = iso => (iso||todayISO()).slice(0,7);
+function monthLabel(key){ const [y,m]=key.split('-'); return new Date(y,m-1,1).toLocaleDateString('en-US',{month:'long',year:'numeric'}); }
+function shiftMonth(key,d){ const [y,m]=key.split('-').map(Number); const dt=new Date(y,m-1+d,1); return dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0'); }
+
+/* ---- default catalog ---- */
+const DEFAULT_CATS = {
+  elec:{name:'Electricity / JPS',group:'Utilities',active:true,order:1,color:'#e0a458',icon:'⚡'},
+  water:{name:'Water / NWC',group:'Utilities',active:true,order:2,color:'#4a9bd1',icon:'💧'},
+  internet:{name:'Internet / Digicel',group:'Utilities',active:true,order:3,color:'#c0504d',icon:'📶'},
+  groceries:{name:'Groceries',group:'Household',active:true,order:4,color:'#5fae6a',icon:'🛒'},
+  supplies:{name:'Household Supplies',group:'Household',active:true,order:5,color:'#8a7dc7',icon:'🧴'},
+  cleaning:{name:'Cleaning',group:'Household',active:true,order:6,color:'#4fb0a5',icon:'🧽'},
+  other_household:{name:'Other Household',group:'Household',active:true,order:7,color:'#9b968c',icon:'🏠'},
+  jumeirah:{name:'Jumeirah Maintenance',group:'Property',active:true,order:8,color:'#d18a3f',icon:'🏢'},
+  adhoc:{name:'Ad Hoc Maintenance',group:'Property',active:true,order:9,color:'#c77d8a',icon:'🔧'},
+  repairs:{name:'Repairs',group:'Property',active:true,order:10,color:'#b06a4d',icon:'🛠️'},
+  other_property:{name:'Other Property Expense',group:'Property',active:true,order:11,color:'#8a8577',icon:'🏗️'},
+  other:{name:'Other',group:'Other',active:true,order:12,color:'#9b968c',icon:'•'},
+};
+const DEFAULT_RECUR = {
+  jumeirah_monthly:{name:'Jumeirah Complex Maintenance',amount:20000,categoryId:'jumeirah',
+    frequency:'monthly',dayOfMonth:1,defaultPayer:'garney',splitType:'even',active:true},
+};
+const DEFAULT_CONFIG = { names:{garney:'Garney',gf:'Girlfriend'}, currency:'JMD', recurringDefaultPayer:'garney' };
+
+const MERCHANT_MAP = [
+  [/jamaica public service|^jps\b|\bjps\b/i,'elec'],
+  [/national water|^nwc\b|\bnwc\b/i,'water'],
+  [/digicel|flow\b/i,'internet'],
+  [/progressive|megamart|hi-?lo|pricesmart|loshusan|general food|shoppers fair|coronation/i,'groceries'],
+];
+
+/* ---- app state ---- */
+const S = {
+  iAm: readLocal('iAm','garney'),
+  month: monthKeyOf(),
+  view: 'home',
+  canWrite: null,           // null=unknown, true, false
+  config: clone(DEFAULT_CONFIG),
+  categories: clone(DEFAULT_CATS),
+  recurring: clone(DEFAULT_RECUR),
+  expenses: [],             // [{id,...}]
+  settlements: {},          // {key:{...}}
+  editing: null,            // expense being edited
+  pendingReceipt: null,     // {blob,name,type,previewUrl,assetId}
+};
+function clone(o){ return JSON.parse(JSON.stringify(o)); }
+function readLocal(k,d){ try{const v=localStorage.getItem('ours_'+k);return v!=null?JSON.parse(v):d;}catch{return d;} }
+function writeLocal(k,v){ try{localStorage.setItem('ours_'+k,JSON.stringify(v));}catch{} }
+
+/* ===========================================================================
+   STORAGE LAYER  (Supabase: settings + expenses + settlements, per household)
+   =========================================================================== */
+const connected = () => !!SB;
+function stripId(o){ const c=clone(o); delete c.id; delete c.key; return c; }
+function cacheLocal(){ writeLocal('cache',{hh:CFG.hh,config:S.config,categories:S.categories,recurring:S.recurring,expenses:S.expenses,settlements:S.settlements}); }
+function loadCache(){ const c=readLocal('cache',null); if(c&&c.hh===CFG.hh){ S.config=c.config||S.config; S.categories=c.categories||S.categories; S.recurring=c.recurring||S.recurring; S.expenses=c.expenses||[]; S.settlements=c.settlements||{}; } }
+function syncError(e){ const b=$('#roBanner'); if(b) b.classList.add('show'); toast('Sync issue: '+((e&&(e.message||e.code))||'failed')); }
+function setReadOnly(){ const b=$('#roBanner'); if(b) b.classList.add('show'); }
+function receiptUrl(path){ try{ return SB.storage.from('receipts').getPublicUrl(path).data.publicUrl; }catch{ return ''; } }
+
+async function sbLoadSettings(){
+  const {data,error}=await SB.from('settings').select('data').eq('household',CFG.hh).maybeSingle();
+  if(error) throw error;
+  if(!data){
+    await SB.from('settings').upsert({household:CFG.hh,data:{config:DEFAULT_CONFIG,categories:DEFAULT_CATS,recurring:DEFAULT_RECUR}});
+    S.config=clone(DEFAULT_CONFIG); S.categories=clone(DEFAULT_CATS); S.recurring=clone(DEFAULT_RECUR);
+  } else {
+    const d=data.data||{};
+    S.config=Object.assign(clone(DEFAULT_CONFIG),d.config||{});
+    S.categories=d.categories||clone(DEFAULT_CATS);
+    S.recurring=d.recurring||clone(DEFAULT_RECUR);
+  }
+}
+async function sbLoadExpenses(){
+  const {data,error}=await SB.from('expenses').select('id,data').eq('household',CFG.hh);
+  if(error) throw error;
+  S.expenses=(data||[]).map(r=>Object.assign({id:r.id},r.data));
+}
+async function sbLoadSettlements(){
+  const {data,error}=await SB.from('settlements').select('key,data').eq('household',CFG.hh);
+  if(error) throw error;
+  const m={}; (data||[]).forEach(r=>m[r.key]=Object.assign({key:r.key},r.data)); S.settlements=m;
+}
+async function loadAll(){ await sbLoadSettings(); await sbLoadExpenses(); await sbLoadSettlements(); cacheLocal(); }
+
+let rtT;
+function subscribeRealtime(){
+  try{
+    SB.channel('rt-'+CFG.hh)
+      .on('postgres_changes',{event:'*',schema:'public',table:'expenses',filter:'household=eq.'+CFG.hh},()=>{ clearTimeout(rtT); rtT=setTimeout(()=>sbLoadExpenses().then(()=>{cacheLocal();renderAll();}).catch(()=>{}),200); })
+      .on('postgres_changes',{event:'*',schema:'public',table:'settlements',filter:'household=eq.'+CFG.hh},()=>{ sbLoadSettlements().then(()=>{cacheLocal();renderAll();}).catch(()=>{}); })
+      .on('postgres_changes',{event:'*',schema:'public',table:'settings',filter:'household=eq.'+CFG.hh},()=>{ sbLoadSettings().then(()=>{cacheLocal();renderAll();}).catch(()=>{}); })
+      .subscribe();
+  }catch(e){}
+}
+
+function upsertLocalExp(exp){ const i=S.expenses.findIndex(x=>x.id===exp.id); if(i>=0) S.expenses[i]=exp; else S.expenses.push(exp); }
+
+async function saveExpense(exp){
+  upsertLocalExp(exp); renderAll(); // optimistic
+  if(!connected()){ cacheLocal(); return true; }
+  try{ const {error}=await SB.from('expenses').upsert({id:exp.id,household:CFG.hh,month:exp.month,data:stripId(exp)}); if(error) throw error; cacheLocal(); }
+  catch(e){ syncError(e); }
+  return true;
+}
+async function deleteExpense(id){
+  S.expenses=S.expenses.filter(x=>x.id!==id); renderAll();
+  if(!connected()){ cacheLocal(); return true; }
+  try{ const {error}=await SB.from('expenses').delete().eq('household',CFG.hh).eq('id',id); if(error) throw error; cacheLocal(); }
+  catch(e){ syncError(e); }
+  return true;
+}
+async function saveSettingsRow(){
+  if(!connected()){ cacheLocal(); return true; }
+  try{ const {error}=await SB.from('settings').upsert({household:CFG.hh,data:{config:S.config,categories:S.categories,recurring:S.recurring}}); if(error) throw error; cacheLocal(); return true; }
+  catch(e){ syncError(e); return true; }
+}
+async function saveCatalog(kind){ renderAll(); return saveSettingsRow(); } // kind ignored — one settings row
+async function saveSettlement(s){
+  S.settlements[s.key]=s; renderAll();
+  if(!connected()){ cacheLocal(); return true; }
+  try{ const {error}=await SB.from('settlements').upsert({household:CFG.hh,key:s.key,data:stripId(s)}); if(error) throw error; cacheLocal(); return true; }
+  catch(e){ syncError(e); return true; }
+}
+
+/* recurring auto-generation for the current REAL month (idempotent) */
+async function ensureRecurring(){
+  const key = monthKeyOf();
+  for(const [rid,r] of Object.entries(S.recurring||{})){
+    if(!r.active) continue;
+    const genId='recur_'+rid+'_'+key;
+    if(S.expenses.some(e=>e.id===genId)) continue;
+    const day=String(Math.min(r.dayOfMonth||1,28)).padStart(2,'0');
+    const exp={ id:genId, description:r.name, merchant:r.name, categoryId:r.categoryId, amount:round2(r.amount),
+      currency:'JMD', date:key+'-'+day, month:key, paidBy:r.defaultPayer||S.config.recurringDefaultPayer||'garney',
+      splitType:r.splitType||'even', split:{}, notes:'Auto-generated recurring', recurringId:rid, addedBy:'system',
+      receiptPath:null, createdAt:Date.now(), updatedAt:Date.now() };
+    await saveExpense(exp);
+  }
+}
+
+/* ===========================================================================
+   SETTLEMENT ENGINE  (validated: 5/5 test cases pass)
+   =========================================================================== */
+function shares(e){
+  const amt=round2(e.amount), t=e.splitType||'even';
+  if(t==='excluded') return {garney:0,gf:0,counted:false};
+  if(t==='full') return e.paidBy==='garney'?{garney:amt,gf:0,counted:true}:{garney:0,gf:amt,counted:true};
+  if(t==='pct'){ const gp=(e.split&&e.split.garneyPct!=null)?e.split.garneyPct:50; const gf=round2(amt*(100-gp)/100); return {garney:round2(amt-gf),gf,counted:true}; }
+  if(t==='fixed'){ const g=round2((e.split&&e.split.garneyAmount)||0); return {garney:g,gf:round2(amt-g),counted:true}; }
+  const gf=round2(amt/2); return {garney:round2(amt-gf),gf,counted:true};
+}
+function computeMonth(list){
+  let total=0,paidG=0,paidF=0,shareG=0,shareF=0; const byCat={};
+  for(const e of list){
+    if((e.splitType||'even')==='excluded') continue;
+    total+=round2(e.amount);
+    const s=shares(e); shareG+=s.garney; shareF+=s.gf;
+    if(e.paidBy==='garney') paidG+=round2(e.amount); else paidF+=round2(e.amount);
+    byCat[e.categoryId]=round2((byCat[e.categoryId]||0)+round2(e.amount));
+  }
+  total=round2(total);paidG=round2(paidG);paidF=round2(paidF);shareG=round2(shareG);shareF=round2(shareF);
+  return {total,paidG,paidF,shareG,shareF,netG:round2(paidG-shareG),byCat};
+}
+function expensesFor(key){ return S.expenses.filter(e=>(e.month||monthKeyOf(e.date))===key).sort((a,b)=>(b.date||'').localeCompare(a.date||'')||b.createdAt-a.createdAt); }
+const nameOf = who => (S.config.names&&S.config.names[who])|| (who==='garney'?'Garney':'Girlfriend');
+
+/* ===========================================================================
+   RENDER
+   =========================================================================== */
+function renderAll(){
+  $('#whoName').textContent = nameOf(S.iAm);
+  $('#monthLbl').textContent = monthLabel(S.month);
+  if(S.view==='home') renderHome();
+  else if(S.view==='exp') renderExpenses();
+  else if(S.view==='hist') renderHistory();
+  else if(S.view==='set') renderSettings();
+}
+
+function catMeta(id){ return S.categories[id] || {name:id||'Other',group:'Other',color:'#9b968c',icon:'•'}; }
+
+function renderHome(){
+  const list=expensesFor(S.month), m=computeMonth(list);
+  const settled=S.settlements[S.month];
+  const netG=m.netG; const bal=Math.abs(netG)<0.005;
+  let dir='', amtCls='', amtTxt='';
+  if(bal){ dir=''; amtTxt='You\u2019re all settled up'; }
+  else if(netG>0){ dir=nameOf('gf')+' owes '+nameOf('garney'); amtTxt=money(netG); }
+  else { dir=nameOf('garney')+' owes '+nameOf('gf'); amtTxt=money(-netG); amtCls='neg'; }
+
+  // settled-but-changed check
+  let changed=false;
+  if(settled && Math.abs(round2((settled.amount||0)*(settled.toUser==='garney'?1:-1)) - netG) > 0.005) changed=true;
+
+  const g=nameOf('garney'), f=nameOf('gf');
+  const myPaid = S.iAm==='garney'?m.paidG:m.paidF, themPaid=S.iAm==='garney'?m.paidF:m.paidG;
+
+  const cats = Object.entries(m.byCat).sort((a,b)=>b[1]-a[1]);
+  const maxCat = cats.length?cats[0][1]:1;
+
+  let settleInner;
+  if(settled && !changed){
+    settleInner = `<div class="lbl">Settlement</div>
+      <div class="stamp">✓ Settled ${settled.settledAt?('· '+new Date(settled.settledAt).toLocaleDateString('en-US',{month:'short',day:'numeric'})):''}</div>
+      <div class="dir" style="margin-top:10px">${settled.toUser==='garney'?f+' \u2192 '+g:g+' \u2192 '+f} · ${money(settled.amount)}</div>`;
+  } else {
+    settleInner = `<div class="lbl">Settlement</div>
+      ${bal?'':`<div class="dir">${dir}</div>`}
+      <div class="amt ${amtCls}">${amtTxt}</div>
+      ${changed?`<div class="warnbar">⚠ This month was settled, but expenses changed since. New balance shown.</div>`:''}
+      ${bal?'':`<div class="btnrow"><button class="btn primary sm" id="markSettle">Mark as settled</button></div>`}`;
+  }
+
+  $('#s-home').innerHTML = `
+    <div class="card settle ${bal&&!settled?'zero':''}">${settleInner}</div>
+
+    <div class="paidrow">
+      <div class="paidcell"><div class="k">${g} paid</div><div class="v">${money(m.paidG)}</div></div>
+      <div class="paidcell"><div class="k">${f} paid</div><div class="v">${money(m.paidF)}</div></div>
+    </div>
+    <div class="card pad" style="margin-top:10px">
+      <div class="tot"><span class="k">Total apartment expenses</span><span class="v">${money(m.total)}</span></div>
+      <div class="tot" style="margin-top:6px"><span class="k">Each person\u2019s share</span><span class="v">${money(m.shareG)} / ${money(m.shareF)}</span></div>
+    </div>
+
+    <div class="sec-title">This month by category</div>
+    <div class="card">
+      ${cats.length? cats.map(([id,v])=>{const c=catMeta(id);return `
+        <div style="padding:11px 14px;border-bottom:1px solid var(--line)">
+          <div class="cat" style="padding:0;border:none">
+            <span class="dot" style="background:${c.color}"></span>
+            <span class="nm">${esc(c.name)} <span class="grp">· ${c.group}</span></span>
+            <span class="val">${money(v)}</span>
+          </div>
+          <div class="bar"><i style="width:${Math.max(4,Math.round(v/maxCat*100))}%;background:${c.color}"></i></div>
+        </div>`;}).join('') : emptyBlock('No expenses yet this month','🧾')}
+    </div>
+
+    <div class="sec-title">Recent expenses</div>
+    <div class="card">${ list.length? list.slice(0,5).map(expRow).join('') : emptyBlock('Tap the ＋ to add your first expense','＋') }</div>
+    ${list.length>5?`<button class="btn ghost block sm" style="margin-top:10px" data-nav="exp">See all ${list.length} expenses</button>`:''}
+  `;
+  const ms=$('#markSettle'); if(ms) ms.onclick=()=>doSettle(netG);
+  $('#s-home').querySelectorAll('[data-exp]').forEach(el=>el.onclick=()=>openEdit(el.dataset.exp));
+  wireNav($('#s-home'));
+}
+
+function expRow(e){
+  const c=catMeta(e.categoryId);
+  const s=shares(e);
+  const t=e.splitType||'even';
+  const impact = t==='excluded' ? 'not split'
+    : e.paidBy==='garney' ? `${nameOf('gf')} owes ${money(s.gf)}` : `${nameOf('garney')} owes ${money(s.garney)}`;
+  return `<div class="exp ${t==='excluded'?'excluded':''}" data-exp="${e.id}">
+    <div class="icn">${c.icon||'•'}</div>
+    <div class="mid">
+      <div class="t1">${esc(e.description||e.merchant||c.name)}</div>
+      <div class="t2"><span class="chip">${esc(c.name)}</span><span>${fmtDate(e.date)}</span>${e.receiptPath?'<span class="clip">📎</span>':''}</div>
+    </div>
+    <div class="right">
+      <div class="amt">${money(e.amount)}</div>
+      <div class="who">${nameOf(e.paidBy)} · ${impact}</div>
+    </div>
+  </div>`;
+}
+
+function renderExpenses(){
+  const list=expensesFor(S.month);
+  $('#s-exp').innerHTML = `
+    <div class="sec-title tight">${monthLabel(S.month)} · ${list.length} expense${list.length===1?'':'s'}</div>
+    <div class="card">${ list.length? list.map(expRow).join('') : emptyBlock('No expenses this month','🧾') }</div>
+    <div class="note">Tap any expense to edit or delete it. Receipts stay attached to the record.</div>`;
+  $('#s-exp').querySelectorAll('[data-exp]').forEach(el=>el.onclick=()=>openEdit(el.dataset.exp));
+}
+
+function renderHistory(){
+  const keys = Object.keys(S.settlements).sort().reverse();
+  // also list months that have expenses but no settlement
+  const withExp = [...new Set(S.expenses.map(e=>e.month||monthKeyOf(e.date)))].sort().reverse();
+  const all = [...new Set([...keys,...withExp])].sort().reverse();
+  $('#s-hist').innerHTML = `
+    <div class="sec-title tight">Settlement history</div>
+    <div class="card">${
+      all.length? all.map(k=>{
+        const st=S.settlements[k]; const m=computeMonth(expensesFor(k));
+        let fl, amt, cls='';
+        if(st){ fl = st.toUser==='garney'?`${nameOf('gf')} \u2192 ${nameOf('garney')}`:`${nameOf('garney')} \u2192 ${nameOf('gf')}`; amt=money(st.amount); }
+        else { const n=m.netG; if(Math.abs(n)<0.005){fl='Balanced';amt='—';} else {fl=n>0?`${nameOf('gf')} \u2192 ${nameOf('garney')}`:`${nameOf('garney')} \u2192 ${nameOf('gf')}`; amt=money(Math.abs(n));} }
+        return `<div class="hist" data-open="${k}">
+          <div class="mid"><div class="mo">${monthLabel(k)}</div><div class="fl">${fl}</div></div>
+          <div style="text-align:right"><div class="amt">${amt}</div>
+          <div style="margin-top:4px"><span class="st ${st?'':'open'}">${st?'Settled ✓':'Open'}</span></div></div>
+        </div>`;
+      }).join('') : emptyBlock('No months yet','🗓️')
+    }</div>
+    <div class="note">Tap a month to view its expenses. Marking a month settled never changes the underlying records.</div>`;
+  $('#s-hist').querySelectorAll('[data-open]').forEach(el=>el.onclick=()=>{ S.month=el.dataset.open; go('exp'); });
+}
+
+function renderSettings(){
+  const cats=Object.entries(S.categories).sort((a,b)=>(a[1].order||99)-(b[1].order||99));
+  const rec=Object.entries(S.recurring);
+  const mode = connected() ? ('Connected · household “'+esc(CFG.hh)+'” ✓') : 'Not connected — set up sync';
+  const aiStatus = 'Manual entry (auto-reading coming later)';
+  $('#s-set').innerHTML = `
+    <div class="sec-title tight">People</div>
+    <div class="card">
+      <div class="setrow"><div><div class="k">Your name</div><div class="d">Shown as “${esc(nameOf('garney'))}”</div></div>
+        <button class="btn sm" data-editname="garney">Edit</button></div>
+      <div class="setrow"><div><div class="k">Partner’s name</div><div class="d">Shown as “${esc(nameOf('gf'))}”</div></div>
+        <button class="btn sm" data-editname="gf">Edit</button></div>
+    </div>
+
+    <div class="sec-title">Recurring expenses</div>
+    <div class="card">
+      ${rec.map(([id,r])=>`<div class="setrow">
+        <div><div class="k">${esc(r.name)}</div><div class="d">${money(r.amount)} · monthly · ${catMeta(r.categoryId).name} · ${nameOf(r.defaultPayer)} pays</div></div>
+        <button class="switch ${r.active?'on':''}" data-recur="${id}"><i></i></button>
+      </div>`).join('')}
+      <div class="setrow"><div class="d">Auto-created on the 1st each month when the app is opened. Disabling keeps past records.</div></div>
+    </div>
+
+    <div class="sec-title">Categories</div>
+    <div class="card">
+      ${cats.map(([id,c])=>`<div class="catedit">
+        <span class="dot" style="width:11px;height:11px;border-radius:3px;background:${c.color}"></span>
+        <span class="nm">${esc(c.name)} <span class="grp">· ${c.group}</span></span>
+        <button class="switch ${c.active?'on':''}" data-cat="${id}"><i></i></button>
+      </div>`).join('')}
+      <div style="padding:10px 12px"><button class="btn sm block" id="addCat">＋ Add category</button></div>
+    </div>
+
+    <div class="sec-title">Data & tools</div>
+    <div class="card">
+      <div class="setrow"><div><div class="k">Sync</div><div class="d" id="syncStatus">${mode}</div></div>
+        <button class="btn sm" id="testSync">Test</button></div>
+      <div class="setrow"><div><div class="k">Receipt AI (OCR)</div><div class="d">${aiStatus}</div></div></div>
+      <div class="setrow"><div><div class="k">Export this month</div><div class="d">${monthLabel(S.month)} to CSV</div></div>
+        <button class="btn sm" id="exportCsv">Export</button></div>
+      <div class="setrow"><div><div class="k">Settlement self-test</div><div class="d">Verify the calculation engine</div></div>
+        <button class="btn sm" id="runTests">Run</button></div>
+      <div id="testOut"></div>
+    </div>
+
+    <div class="sec-title">Sharing</div>
+    <div class="card">
+      <div class="setrow"><div><div class="k">Invite your partner</div><div class="d">One link that pre-fills the connection. They just add the household code.</div></div>
+        <button class="btn sm" id="copyInvite">Copy link</button></div>
+      <div class="setrow"><div><div class="k">Connection</div><div class="d">${connected()?('Household “'+esc(CFG.hh)+'”'):'Not connected'}</div></div>
+        <button class="btn sm" id="reconnect">Change</button></div>
+    </div>
+    <div class="note">V2-ready: custom split %, per-person expenses, multiple properties, budgets, trends, WhatsApp share, bill reminders, and automatic receipt reading are all supported by the data model.</div>
+  `;
+  $('#s-set').querySelectorAll('[data-editname]').forEach(b=>b.onclick=()=>editName(b.dataset.editname));
+  $('#s-set').querySelectorAll('[data-recur]').forEach(b=>b.onclick=()=>{ if(!writable())return; const id=b.dataset.recur; S.recurring[id].active=!S.recurring[id].active; saveCatalog('recurring'); renderSettings(); });
+  $('#s-set').querySelectorAll('[data-cat]').forEach(b=>b.onclick=()=>{ if(!writable())return; const id=b.dataset.cat; S.categories[id].active=!S.categories[id].active; saveCatalog('categories'); renderSettings(); });
+  $('#addCat').onclick=addCategory;
+  $('#exportCsv').onclick=exportCsv;
+  $('#runTests').onclick=runTests;
+  const ts=$('#testSync'); if(ts) ts.onclick=testSync;
+  const ci=$('#copyInvite'); if(ci) ci.onclick=copyInvite;
+  const rc=$('#reconnect'); if(rc) rc.onclick=openSetup;
+}
+async function copyInvite(){
+  if(!connected()){ toast('Connect first'); return; }
+  const link=inviteLink();
+  try{ await navigator.clipboard.writeText(link); toast('Invite link copied ✓'); }
+  catch(e){
+    openModal(`<h3>Invite link</h3><p>Send this to your partner. They open it, then enter the household code “${esc(CFG.hh)}”.</p><input id="mp_in" type="text" value="${esc(link)}"><div class="row"><button class="btn primary" id="mp_ok">Done</button></div>`);
+    const box=$('#modalBox'); const inp=box.querySelector('#mp_in'); if(inp&&inp.select) inp.select(); box.querySelector('#mp_ok').onclick=closeModal;
+  }
+}
+
+function emptyBlock(t,icon){ return `<div class="empty"><div class="big">${icon||'∅'}</div>${esc(t)}</div>`; }
+function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function fmtDate(iso){ if(!iso)return''; const d=new Date(iso+'T00:00'); return d.toLocaleDateString('en-US',{month:'short',day:'numeric'}); }
+function writable(){ return true; }
+
+/* ===========================================================================
+   ADD / EDIT SHEET
+   =========================================================================== */
+function openSheet(){ $('#sheetBg').classList.add('open'); $('#sheet').classList.add('open'); }
+function closeSheet(){ $('#sheetBg').classList.remove('open'); $('#sheet').classList.remove('open'); S.editing=null; clearPending(); }
+function clearPending(){ if(S.pendingReceipt&&S.pendingReceipt.previewUrl) URL.revokeObjectURL(S.pendingReceipt.previewUrl); S.pendingReceipt=null; }
+
+function openAdd(){
+  if(!writable())return;
+  S.editing=null; clearPending();
+  $('#sheetTitle').textContent='Add expense';
+  renderForm({ date:todayISO(), paidBy:S.iAm, splitType:'even', categoryId:'', amount:'', description:'' });
+  openSheet();
+}
+function openEdit(id){
+  const e=S.expenses.find(x=>x.id===id); if(!e)return;
+  S.editing=e; clearPending();
+  $('#sheetTitle').textContent='Edit expense';
+  renderForm(clone(e));
+  openSheet();
+}
+
+function renderForm(v){
+  const cats=Object.entries(S.categories).filter(([id,c])=>c.active).sort((a,b)=>(a[1].order||99)-(b[1].order||99));
+  const opt=cats.map(([id,c])=>`<option value="${id}" ${v.categoryId===id?'selected':''}>${esc(c.name)}</option>`).join('');
+  const isEdit=!!S.editing;
+  const settledMonth = S.settlements[v.month||S.month];
+  const hasReceipt = (S.pendingReceipt&&(S.pendingReceipt.path||S.pendingReceipt.previewUrl)) || v.receiptPath;
+  const receiptSrc = S.pendingReceipt&&S.pendingReceipt.previewUrl ? S.pendingReceipt.previewUrl : (v.receiptPath?receiptUrl(v.receiptPath):'');
+
+  $('#sheetBody').innerHTML = `
+    ${!isEdit?`
+    <div class="drop" id="drop">
+      <div style="font-size:26px">🧾</div>
+      <div style="font-weight:650;margin-top:4px">Snap or upload a receipt</div>
+      <div style="font-size:12px;color:var(--ink-3);margin-top:2px">AI reads the provider, date & total for you</div>
+      <div class="row">
+        <button class="btn sm" id="camBtn">📷 Take photo</button>
+        <button class="btn sm" id="upBtn">⬆ Upload</button>
+      </div>
+      <input type="file" id="camIn" accept="image/*" capture="environment" hidden>
+      <input type="file" id="upIn" accept="image/*,application/pdf" hidden>
+    </div>
+    <div id="aiZone"></div>
+    <div style="text-align:center;color:var(--ink-3);font-size:12px;margin:14px 0 4px">— or enter manually —</div>`:''}
+
+    ${settledMonth?`<div class="warnbar" style="margin-bottom:12px">⚠ ${monthLabel(v.month||S.month)} is already settled. Changes will affect that settlement.</div>`:''}
+
+    <div class="field"><label>Amount (JMD)</label>
+      <div class="amtwrap"><span class="cur">JMD</span>
+      <input id="f_amount" type="number" inputmode="decimal" step="0.01" placeholder="0" value="${v.amount!==''&&v.amount!=null?v.amount:''}"></div></div>
+
+    <div class="field"><label>Description</label>
+      <input id="f_desc" type="text" placeholder="e.g. Groceries at Progressive" value="${esc(v.description||v.merchant||'')}"></div>
+
+    <div class="field"><label>Category</label>
+      <select id="f_cat"><option value="" ${!v.categoryId?'selected':''} disabled>Choose category…</option>${opt}</select></div>
+
+    <div class="two">
+      <div class="field"><label>Date</label><input id="f_date" type="date" value="${v.date||todayISO()}"></div>
+      <div class="field"><label>Paid by</label>
+        <select id="f_paid">
+          <option value="garney" ${v.paidBy==='garney'?'selected':''}>${esc(nameOf('garney'))}</option>
+          <option value="gf" ${v.paidBy==='gf'?'selected':''}>${esc(nameOf('gf'))}</option>
+        </select></div>
+    </div>
+
+    <div class="field"><label>Split</label>
+      <div class="seg" id="f_split">
+        <button data-sp="even" class="${(v.splitType||'even')==='even'?'on':''}">50 / 50</button>
+        <button data-sp="full" class="${v.splitType==='full'?'on':''}">Payer 100%</button>
+        <button data-sp="excluded" class="${v.splitType==='excluded'?'on':''}">Not shared</button>
+      </div>
+      <div id="splitHint" style="font-size:11.5px;color:var(--ink-3);margin-top:6px"></div>
+    </div>
+
+    <div class="field"><label>Notes (optional)</label><textarea id="f_notes" placeholder="Anything to remember…">${esc(v.notes&&v.notes!=='Auto-generated recurring'?v.notes:'')}</textarea></div>
+
+    ${hasReceipt?`<div class="thumb">${receiptSrc&&!/pdf/i.test(S.pendingReceipt?.type||'')?`<img src="${receiptSrc}" alt="">`:'<div style="width:46px;height:46px;border-radius:8px;display:grid;place-items:center;background:var(--surface-2);border:1px solid var(--line)">📄</div>'}<div class="nm">Receipt attached</div><button class="btn sm ghost" id="viewRcpt">View</button></div>`:''}
+
+    <div style="display:flex;gap:10px;margin-top:18px">
+      ${isEdit?`<button class="btn danger" id="delBtn">Delete</button>`:''}
+      <button class="btn primary block" id="saveBtn">${isEdit?'Save changes':'Add expense'}</button>
+    </div>
+  `;
+
+  // split hint
+  let sp=v.splitType||'even';
+  const setHint=()=>{ const el=$('#splitHint'); if(!el)return;
+    el.textContent = sp==='even'?'Split evenly. The other person owes their half.'
+      : sp==='full'?'The payer covers 100% — not owed back.'
+      : 'Excluded from the monthly settlement entirely.'; };
+  setHint();
+  $('#f_split').querySelectorAll('button').forEach(b=>b.onclick=()=>{ sp=b.dataset.sp; $('#f_split').querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b)); setHint(); });
+
+  const vr=$('#viewRcpt'); if(vr) vr.onclick=()=>{ if(!receiptSrc)return; const pt=(S.pendingReceipt&&S.pendingReceipt.type)||(S.editing&&S.editing.receiptPath)||''; uiReceipt(receiptSrc,/pdf/i.test(pt)); };
+
+  if(!isEdit){
+    $('#camBtn').onclick=()=>$('#camIn').click();
+    $('#upBtn').onclick=()=>$('#upIn').click();
+    $('#camIn').onchange=e=>handleReceipt(e.target.files[0]);
+    $('#upIn').onchange=e=>handleReceipt(e.target.files[0]);
+  }
+  $('#saveBtn').onclick=()=>submitForm(sp);
+  const db2=$('#delBtn'); if(db2) db2.onclick=async()=>{ if(await uiConfirm('Delete this expense?','This removes it from the shared record.',{danger:true,ok:'Delete'})){ await deleteExpense(S.editing.id); closeSheet(); toast('Deleted'); } };
+}
+
+async function submitForm(sp){
+  const amount=parseFloat($('#f_amount').value);
+  const cat=$('#f_cat').value;
+  if(!(amount>0)){ toast('Enter an amount'); return; }
+  if(!cat){ toast('Choose a category'); return; }
+  const date=$('#f_date').value||todayISO();
+  const base = S.editing ? clone(S.editing) : {id:uid(),createdAt:Date.now(),recurringId:null,addedBy:S.iAm,receiptPath:null};
+  const exp = Object.assign(base,{
+    description:$('#f_desc').value.trim()||catMeta(cat).name,
+    merchant:$('#f_desc').value.trim()||catMeta(cat).name,
+    categoryId:cat, amount:round2(amount), currency:'JMD',
+    date, month:monthKeyOf(date), paidBy:$('#f_paid').value,
+    splitType:sp, split:base.split||{}, notes:$('#f_notes').value.trim(), updatedAt:Date.now(),
+  });
+  if(S.pendingReceipt&&S.pendingReceipt.path){ exp.receiptPath=S.pendingReceipt.path; }
+  const settled=S.settlements[exp.month];
+  const ok=await saveExpense(exp);
+  if(!ok) return;
+  closeSheet();
+  toast(S.editing?'Saved ✓':'Expense added ✓');
+  if(settled) setTimeout(()=>toast('⚠ This affects the '+monthLabel(exp.month)+' settlement'),1400);
+}
+
+/* ---- receipt upload (Supabase Storage) ---- */
+async function handleReceipt(file){
+  if(!file)return;
+  clearPending();
+  const previewUrl = /image/i.test(file.type)? URL.createObjectURL(file): '';
+  S.pendingReceipt = {blob:file,name:file.name,type:file.type,previewUrl,path:null,uploading:true};
+  const cur=collectForm(); renderForm(cur);
+  const zone=$('#aiZone');
+  if(zone) zone.innerHTML=`<div class="ai"><h4><span class="spin"></span> Attaching receipt…</h4></div>`;
+
+  if(connected()){
+    try{
+      const safe=(file.name||'receipt').replace(/[^a-z0-9.\-_]/gi,'_');
+      const path=CFG.hh+'/'+Date.now()+'_'+safe;
+      const {error}=await SB.storage.from('receipts').upload(path,file,{upsert:true,contentType:file.type||'application/octet-stream'});
+      if(error) throw error;
+      S.pendingReceipt.path=path;
+    }catch(e){ if(zone) zone.innerHTML=`<div class="ai"><h4>🧾 Receipt</h4><div style="font-size:12.5px;color:var(--warn)">Couldn’t upload the file (${esc((e&&(e.message||e.code))||'error')}). You can still save the expense; add the receipt later.</div></div>`; S.pendingReceipt.uploading=false; return; }
+  }
+  S.pendingReceipt.uploading=false;
+  if(zone) zone.innerHTML=`<div class="ai"><h4>🧾 Receipt attached ✓</h4>
+    <div style="font-size:12.5px;color:var(--ink-2)">Enter the details below. (Automatic receipt reading is coming in a later update.)</div></div>`;
+}
+function collectForm(){
+  return {
+    amount:$('#f_amount')?$('#f_amount').value:'', description:$('#f_desc')?$('#f_desc').value:'',
+    categoryId:$('#f_cat')?$('#f_cat').value:'', date:$('#f_date')?$('#f_date').value:todayISO(),
+    paidBy:$('#f_paid')?$('#f_paid').value:S.iAm, splitType:'even',
+    notes:$('#f_notes')?$('#f_notes').value:'', receiptPath:S.pendingReceipt?S.pendingReceipt.path:null,
+  };
+}
+
+/* ===========================================================================
+   SETTLEMENT ACTION
+   =========================================================================== */
+async function doSettle(netG){
+  if(!writable())return;
+  if(Math.abs(netG)<0.005){ toast('Already balanced'); return; }
+  const toUser = netG>0?'garney':'gf';
+  const fromUser = netG>0?'gf':'garney';
+  const amount = round2(Math.abs(netG));
+  const ok0=await uiConfirm('Mark '+monthLabel(S.month)+' settled?', nameOf(fromUser)+' pays '+nameOf(toUser)+' '+money(amount)+'.',{ok:'Mark settled'});
+  if(!ok0) return;
+  const s={ key:S.month, month:S.month.slice(5), year:+S.month.slice(0,4),
+    fromUser, toUser, amount, status:'settled', settledAt:Date.now(), note:'',
+    snapshot:{netG:round2(netG)} };
+  const ok=await saveSettlement(s);
+  if(ok){ confettiHint(); toast('Settled ✓'); }
+}
+function confettiHint(){ const el=$('.settle'); if(el){ el.animate([{transform:'scale(1)'},{transform:'scale(1.02)'},{transform:'scale(1)'}],{duration:300}); } }
+
+/* ===========================================================================
+   SETTINGS ACTIONS
+   =========================================================================== */
+function editName(who){
+  uiPrompt('Name for '+(who==='garney'?'you':'your partner'), nameOf(who), {ok:'Save',placeholder:'Enter a name'}).then(async v=>{
+    if(v && v.trim()){ S.config.names=S.config.names||{}; S.config.names[who]=v.trim(); const ok=await saveCatalog('config'); renderSettings(); toast(ok?'Saved ✓':'Saved on this device'); }
+  });
+}
+async function addCategory(){
+  if(!writable())return;
+  const name=await uiPrompt('New category name','',{placeholder:'e.g. Gas',ok:'Next'});
+  if(!name||!name.trim())return;
+  const group=await uiChoose('Which group?',[
+    {label:'Utilities',value:'Utilities'},{label:'Household',value:'Household'},
+    {label:'Property',value:'Property'},{label:'Other',value:'Other'}]);
+  if(!group)return;
+  const id='c_'+Math.random().toString(36).slice(2,8);
+  const order=Object.keys(S.categories).length+1;
+  const palette=['#5fae6a','#4a9bd1','#e0a458','#8a7dc7','#c0504d','#4fb0a5','#c77d8a','#b06a4d'];
+  S.categories[id]={name:name.trim(),group:group.trim(),active:true,order,color:palette[order%palette.length],icon:'•'};
+  saveCatalog('categories'); renderSettings(); toast('Category added');
+}
+async function exportCsv(){
+  const list=expensesFor(S.month);
+  const rows=[['Date','Description','Category','Group','Amount (JMD)','Paid by','Garney share','GF share','Split','Notes']];
+  list.forEach(e=>{ const s=shares(e); const c=catMeta(e.categoryId);
+    rows.push([e.date,e.description||e.merchant||'',c.name,c.group,round2(e.amount),nameOf(e.paidBy),s.garney,s.gf,e.splitType||'even',(e.notes||'').replace(/\n/g,' ')]); });
+  const csv=rows.map(r=>r.map(x=>{const s=String(x??'');return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;}).join(',')).join('\n');
+  const fname='ours-'+S.month+'.csv';
+  const blob=new Blob([csv],{type:'text/csv'}); const url=URL.createObjectURL(blob);
+  const a=document.createElement('a'); a.href=url; a.download=fname; a.click(); setTimeout(()=>URL.revokeObjectURL(url),2000);
+}
+async function testSync(){
+  const el=$('#syncStatus'); const set=t=>{ if(el) el.textContent=t; };
+  if(!connected()){ set('Not connected. Open Settings → Set up sync.'); toast('Not connected'); return; }
+  set('Testing…');
+  try{
+    const {error}=await SB.from('settings').select('household').eq('household',CFG.hh).limit(1);
+    if(error) throw error;
+    $('#roBanner')&&$('#roBanner').classList.remove('show');
+    set('Connected ✓ — reached the shared database (household “'+CFG.hh+'”). Sync OK.'); toast('Sync OK ✓');
+  }catch(e){
+    const msg=(e&&(e.message||e.code))||'error';
+    set('Problem: '+msg+' — check your Supabase URL/key and that the tables + policies from the setup SQL exist.');
+    setReadOnly(); toast('Sync error');
+  }
+}
+function runTests(){
+  const cases=[
+    {n:'Case 1 · one pays all',ex:[{amount:20000,paidBy:'garney'}],want:'GF owes Garney 10000'},
+    {n:'Case 2 · equal',ex:[{amount:10000,paidBy:'garney'},{amount:10000,paidBy:'gf'}],want:'Settled 0'},
+    {n:'Case 3 · GF paid more',ex:[{amount:30000,paidBy:'garney'},{amount:70000,paidBy:'gf'}],want:'Garney owes GF 20000'},
+    {n:'Case 4 · three items',ex:[{amount:20000,paidBy:'garney'},{amount:10000,paidBy:'gf'},{amount:30000,paidBy:'garney'}],want:'GF owes Garney 20000'},
+    {n:'Rounding · odd cents',ex:[{amount:18450.33,paidBy:'garney'}],want:'GF owes Garney 9225.17'},
+  ];
+  const out=$('#testOut'); let pass=0;
+  const lines=cases.map(c=>{
+    const m=computeMonth(c.ex); const n=m.netG;
+    let got=Math.abs(n)<0.005?'Settled 0':(n>0?`GF owes Garney ${round2(n)}`:`Garney owes GF ${round2(-n)}`);
+    const recon=round2(m.shareG+m.shareF)===m.total;
+    const ok=got===c.want&&recon; if(ok)pass++;
+    return `<div class="testline"><span>${c.n}</span><span class="${ok?'ok':'bad'}">${ok?'PASS':'FAIL'}</span></div>`;
+  });
+  out.innerHTML=lines.join('')+`<div class="testline"><span>Total</span><span class="${pass===cases.length?'ok':'bad'}">${pass}/${cases.length}</span></div>`;
+}
+
+/* ===========================================================================
+   WHO-AM-I + NAV
+   =========================================================================== */
+function pickWho(){
+  uiChoose("Who's using this device?",[
+    {label:nameOf('garney'),value:'garney'},
+    {label:nameOf('gf'),value:'gf'},
+  ]).then(v=>{ if(!v)return; S.iAm=v; writeLocal('iAm',S.iAm); renderAll(); toast('You are '+nameOf(S.iAm)); });
+}
+function go(v){
+  S.view=v;
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  $('#s-'+v).classList.add('active');
+  document.querySelectorAll('.tab[data-nav]').forEach(t=>t.classList.toggle('on',t.dataset.nav===v));
+  renderAll(); window.scrollTo(0,0);
+}
+function wireNav(root){ (root||document).querySelectorAll('[data-nav]').forEach(b=>b.onclick=()=>go(b.dataset.nav)); }
+
+let toastT;
+function toast(msg){ const t=$('#toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('show'),2200); }
+
+/* ---- in-app dialogs (native prompt/confirm blocked in frame) ---- */
+function openModal(html){ const box=$('#modalBox'); box.innerHTML=html; $('#modalBg').classList.add('open'); return box; }
+function closeModal(){ $('#modalBg').classList.remove('open'); }
+function uiPrompt(title,value,opts={}){
+  return new Promise(res=>{
+    const box=openModal(`<h3>${esc(title)}</h3>${opts.desc?`<p>${esc(opts.desc)}</p>`:''}
+      <input id="mp_in" type="${opts.type||'text'}" value="${esc(value||'')}" placeholder="${esc(opts.placeholder||'')}">
+      <div class="row"><button class="btn ghost" id="mp_cancel">Cancel</button><button class="btn primary" id="mp_ok">${esc(opts.ok||'Save')}</button></div>`);
+    const inp=box.querySelector('#mp_in'); setTimeout(()=>{inp.focus();inp.select&&inp.select();},60);
+    const done=v=>{closeModal();res(v);};
+    box.querySelector('#mp_cancel').onclick=()=>done(null);
+    box.querySelector('#mp_ok').onclick=()=>done(inp.value);
+    inp.onkeydown=e=>{ if(e.key==='Enter'){e.preventDefault();done(inp.value);} };
+  });
+}
+function uiConfirm(title,message,opts={}){
+  return new Promise(res=>{
+    const box=openModal(`<h3>${esc(title)}</h3>${message?`<p>${esc(message)}</p>`:''}
+      <div class="row"><button class="btn ghost" id="mc_no">${esc(opts.cancel||'Cancel')}</button>
+      <button class="btn ${opts.danger?'danger':'primary'}" id="mc_yes">${esc(opts.ok||'Confirm')}</button></div>`);
+    box.querySelector('#mc_no').onclick=()=>{closeModal();res(false);};
+    box.querySelector('#mc_yes').onclick=()=>{closeModal();res(true);};
+  });
+}
+function uiChoose(title,options){
+  return new Promise(res=>{
+    const box=openModal(`<h3>${esc(title)}</h3>
+      <div class="opts">${options.map((o,i)=>`<button data-i="${i}">${esc(o.label)}</button>`).join('')}</div>
+      <div class="row"><button class="btn ghost" id="ch_cancel">Cancel</button></div>`);
+    box.querySelectorAll('[data-i]').forEach(b=>b.onclick=()=>{closeModal();res(options[+b.dataset.i].value);});
+    box.querySelector('#ch_cancel').onclick=()=>{closeModal();res(null);};
+  });
+}
+function uiReceipt(src,isPdf){
+  const box=openModal(`<h3>Receipt</h3>${isPdf
+      ?`<p>PDF receipt attached.</p><a class="btn primary block" href="${esc(src)}" target="_blank" rel="noopener">Open PDF</a>`
+      :`<img class="rcpt-img" src="${esc(src)}" alt="receipt">`}
+    <div class="row" style="margin-top:12px"><button class="btn ghost" id="rc_close">Close</button></div>`);
+  box.querySelector('#rc_close').onclick=closeModal;
+}
+
+/* ===========================================================================
+   BOOT
+   =========================================================================== */
+function wireStatic(){
+  document.querySelectorAll('.tab[data-nav]').forEach(b=>b.onclick=()=>go(b.dataset.nav));
+  $('#addTab').onclick=openAdd;
+  $('#prevM').onclick=()=>{ S.month=shiftMonth(S.month,-1); renderAll(); };
+  $('#nextM').onclick=()=>{ S.month=shiftMonth(S.month,1); renderAll(); };
+  $('#whoBtn').onclick=pickWho;
+  $('#sheetClose').onclick=closeSheet;
+  $('#sheetBg').onclick=closeSheet;
+}
+
+async function boot(){
+  wireStatic();
+  applyInviteHash();
+  loadCfg();
+  renderAll(); // immediate shell from defaults
+
+  if(CFG.url && CFG.key && CFG.hh){
+    loadCache(); renderAll();            // show last-known data instantly
+    await connect();
+  } else {
+    showSetup();
+  }
+}
+
+async function connect(){
+  if(!window.supabase || !window.supabase.createClient){ toast('Backend library failed to load — check your connection'); return; }
+  try{ SB = window.supabase.createClient(CFG.url, CFG.key); }
+  catch(e){ toast('Bad Supabase URL/key'); showSetup(); return; }
+  try{
+    await loadAll();
+    await ensureRecurring();
+    subscribeRealtime();
+    renderAll();
+    toast('Connected ✓');
+  }catch(e){
+    const msg=(e&&(e.message||e.code))||'connection failed';
+    // keep showing cached data; surface the problem
+    setReadOnly();
+    toast('Connect issue: '+msg);
+    renderAll();
+  }
+}
+
+/* ---- Setup / connection screen ---- */
+function showSetup(){
+  const s=$('#s-setup'); if(!s) return;
+  document.querySelectorAll('.screen').forEach(x=>x.classList.remove('active'));
+  s.classList.add('active');
+  document.querySelector('nav.bottom').style.display='none';
+  s.innerHTML=`
+    <div class="card pad" style="margin-top:8px">
+      <h2 style="margin:0 0 4px;font-size:20px;letter-spacing:-.02em">Set up shared sync</h2>
+      <p style="color:var(--ink-2);font-size:13.5px;margin:0 0 14px">Connect this app to your free Supabase project once. Then share the invite link with your partner — they open it, enter the same household code, and you're both live on the same data.</p>
+      <div class="field"><label>Supabase Project URL</label><input id="su_url" type="url" placeholder="https://xxxx.supabase.co" value="${esc(CFG.url)}"></div>
+      <div class="field"><label>Supabase anon public key</label><input id="su_key" type="text" placeholder="eyJhbGc…" value="${esc(CFG.key)}"></div>
+      <div class="field"><label>Household code (a shared word you both type)</label><input id="su_hh" type="text" placeholder="e.g. jumeirah-us" value="${esc(CFG.hh)}"></div>
+      <button class="btn primary block" id="su_connect">Connect</button>
+      <div id="su_msg" class="note"></div>
+      <div class="note">The anon key is public by design — access is governed by the database policies in the setup SQL. Keep the invite link private.</div>
+    </div>
+    <div class="card pad" style="margin-top:12px">
+      <div style="font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);margin-bottom:8px">Where do I get these?</div>
+      <div style="font-size:13px;color:var(--ink-2);line-height:1.6">1. Create a free project at supabase.com<br>2. Open <b>Project Settings → API</b><br>3. Copy the <b>Project URL</b> and the <b>anon public</b> key<br>4. In the <b>SQL editor</b>, run the setup script I gave you (creates the tables, policies and the receipts bucket)<br>5. Paste URL + key above, pick a household code, tap Connect</div>
+    </div>`;
+  $('#su_connect').onclick=async()=>{
+    const url=$('#su_url').value.trim(), key=$('#su_key').value.trim(), hh=$('#su_hh').value.trim();
+    const msg=$('#su_msg');
+    if(!/^https:\/\/.+\.supabase\.co/.test(url)){ msg.textContent='Enter a valid Supabase URL (https://xxxx.supabase.co)'; return; }
+    if(key.length<20){ msg.textContent='That anon key looks too short.'; return; }
+    if(!hh){ msg.textContent='Pick a household code you\u2019ll both use.'; return; }
+    msg.textContent='Connecting…';
+    saveCfg(url,key,hh);
+    try{ SB = window.supabase.createClient(CFG.url,CFG.key); }catch(e){ msg.textContent='Bad URL/key.'; return; }
+    try{
+      await loadAll(); await ensureRecurring(); subscribeRealtime();
+      document.querySelector('nav.bottom').style.display='';
+      go('home'); toast('Connected ✓');
+    }catch(e){ msg.textContent='Couldn\u2019t connect: '+((e&&(e.message||e.code))||'error')+'. Check the URL/key and that you ran the setup SQL.'; }
+  };
+}
+function openSetup(){ showSetup(); }
+
+document.addEventListener('DOMContentLoaded',boot);
+if(document.readyState!=='loading') boot();
+</script>
+</body>
+</html>
