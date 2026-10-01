@@ -349,6 +349,8 @@
   .banner{background:var(--warn-soft);color:var(--warn);border:1px solid color-mix(in srgb,var(--warn) 30%,transparent);
     border-radius:14px;padding:10px 12px;font-size:12.5px;font-weight:600;margin-bottom:12px;display:none}
   .banner.show{display:block}
+  .recur-prompt{border:1px solid color-mix(in srgb,var(--accent) 38%,var(--line)) !important;
+    box-shadow:var(--shadow), inset 0 1px 0 var(--edge), 0 0 0 3px var(--accent-soft)}
 
   /* In-app modal (native prompt/confirm are blocked in the frame) */
   .modal-bg{position:fixed;inset:0;z-index:60;background:rgba(10,14,12,.42);
@@ -598,20 +600,58 @@ async function saveSettlement(s){
   catch(e){ syncError(e); return true; }
 }
 
+/* recurring generation helpers */
+function recurGenId(rid,key){ return 'recur_'+rid+'_'+key; }
+function buildRecurExpense(rid,r,key){
+  const day=String(Math.min(r.dayOfMonth||1,28)).padStart(2,'0');
+  return { id:recurGenId(rid,key), description:r.name, merchant:r.name, categoryId:r.categoryId, amount:round2(r.amount),
+    currency:'JMD', date:key+'-'+day, month:key, paidBy:r.defaultPayer||S.config.recurringDefaultPayer||'garney',
+    splitType:r.splitType||'even', split:(r.split?clone(r.split):{}), notes:'Auto-generated recurring', recurringId:rid, addedBy:'system',
+    receiptPath:null, createdAt:Date.now(), updatedAt:Date.now() };
+}
+// active recurring items that have no generated expense in `key`
+function missingRecurring(key){ return Object.entries(S.recurring||{}).filter(([rid,r])=>r && r.active && !S.expenses.some(e=>e.id===recurGenId(rid,key))); }
+// add one (rid) or all missing recurring items to a given month
+async function addRecurringFor(key, rid){
+  const entries = rid ? [[rid, S.recurring[rid]]] : missingRecurring(key);
+  let added=0;
+  for(const [id,r] of entries){ if(!r) continue; if(S.expenses.some(e=>e.id===recurGenId(id,key))) continue; await saveExpense(buildRecurExpense(id,r,key)); added++; }
+  if(added){ toast('Added to '+monthLabel(key)); if(S.settlements[key]) setTimeout(()=>toast('⚠ This affects the '+monthLabel(key)+' settlement'),1300); }
+}
+
 /* recurring auto-generation for the current REAL month (idempotent) */
 async function ensureRecurring(){
   const key = monthKeyOf();
   for(const [rid,r] of Object.entries(S.recurring||{})){
     if(!r.active) continue;
-    const genId='recur_'+rid+'_'+key;
-    if(S.expenses.some(e=>e.id===genId)) continue;
-    const day=String(Math.min(r.dayOfMonth||1,28)).padStart(2,'0');
-    const exp={ id:genId, description:r.name, merchant:r.name, categoryId:r.categoryId, amount:round2(r.amount),
-      currency:'JMD', date:key+'-'+day, month:key, paidBy:r.defaultPayer||S.config.recurringDefaultPayer||'garney',
-      splitType:r.splitType||'even', split:(r.split?clone(r.split):{}), notes:'Auto-generated recurring', recurringId:rid, addedBy:'system',
-      receiptPath:null, createdAt:Date.now(), updatedAt:Date.now() };
-    await saveExpense(exp);
+    if(S.expenses.some(e=>e.id===recurGenId(rid,key))) continue;
+    await saveExpense(buildRecurExpense(rid,r,key));
   }
+}
+
+/* prompt card shown when the displayed month is missing recurring items */
+function recurringPrompt(key){
+  const miss=missingRecurring(key); if(!miss.length) return '';
+  return `<div class="card pad recur-prompt" style="margin-bottom:12px">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:2px">
+      <span style="font-size:16px">🔁</span>
+      <span style="font-size:13.5px;font-weight:700">Recurring not added for ${monthLabel(key)}</span>
+    </div>
+    <div style="font-size:12.5px;color:var(--ink-2);margin-bottom:10px">Add the monthly items that normally auto-create on the 1st.</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      ${miss.map(([id,r])=>`<button class="btn sm" data-addrec="${id}" data-mon="${key}">＋ ${esc(r.name)} · ${money(r.amount)}</button>`).join('')}
+      ${miss.length>1?`<button class="btn sm primary" data-addrec="*" data-mon="${key}">Add all</button>`:''}
+    </div>
+  </div>`;
+}
+function wireRecurringPrompt(root){
+  (root||document).querySelectorAll('[data-addrec]').forEach(b=>b.onclick=async()=>{
+    if(!writable())return;
+    const rid=b.dataset.addrec, key=b.dataset.mon;
+    b.disabled=true;
+    await addRecurringFor(key, rid==='*'?null:rid);
+    renderAll();
+  });
 }
 
 /* ===========================================================================
@@ -700,6 +740,8 @@ function renderHome(){
   $('#s-home').innerHTML = `
     <div class="card settle ${bal&&!settled?'zero':''}">${settleInner}</div>
 
+    ${recurringPrompt(S.month)}
+
     <div class="paidrow">
       <div class="paidcell"><div class="k">${g} paid</div><div class="v">${money(m.paidG)}</div></div>
       <div class="paidcell"><div class="k">${f} paid</div><div class="v">${money(m.paidF)}</div></div>
@@ -728,6 +770,7 @@ function renderHome(){
   `;
   const ms=$('#markSettle'); if(ms) ms.onclick=()=>doSettle(netG);
   $('#s-home').querySelectorAll('[data-exp]').forEach(el=>el.onclick=()=>openEdit(el.dataset.exp));
+  wireRecurringPrompt($('#s-home'));
   wireNav($('#s-home'));
 }
 
@@ -754,9 +797,11 @@ function renderExpenses(){
   const list=expensesFor(S.month);
   $('#s-exp').innerHTML = `
     <div class="sec-title tight">${monthLabel(S.month)} · ${list.length} expense${list.length===1?'':'s'}</div>
+    ${recurringPrompt(S.month)}
     <div class="card">${ list.length? list.map(expRow).join('') : emptyBlock('No expenses this month','🧾') }</div>
-    <div class="note">Tap any expense to edit or delete it. Receipts stay attached to the record.</div>`;
+    <div class="note">Use ‹ › in the header to pick a month. Tap any expense to edit or delete it.</div>`;
   $('#s-exp').querySelectorAll('[data-exp]').forEach(el=>el.onclick=()=>openEdit(el.dataset.exp));
+  wireRecurringPrompt($('#s-exp'));
 }
 
 function renderHistory(){
