@@ -119,6 +119,26 @@
     border:1px solid var(--edge);color:var(--ink-2);border-radius:999px;padding:6px 12px;font-size:12.5px;font-weight:600;
     box-shadow:inset 0 1px 0 var(--edge)}
   .who-pill b{color:var(--ink)}
+  .icon-btn{display:grid;place-items:center;width:34px;height:34px;border-radius:12px;background:var(--surface-strong);
+    -webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);border:1px solid var(--edge);color:var(--ink-2);
+    box-shadow:inset 0 1px 0 var(--edge);transition:transform .12s}
+  .icon-btn:active{transform:scale(.92)}
+  .icon-btn svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.9}
+  /* Insights */
+  .stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .stat{background:var(--glass-fill);-webkit-backdrop-filter:blur(var(--blur)) saturate(1.7);backdrop-filter:blur(var(--blur)) saturate(1.7);
+    border:1px solid var(--line);border-radius:var(--radius-sm);padding:14px;box-shadow:var(--shadow),inset 0 1px 0 var(--edge)}
+  .stat .k{font-size:11.5px;color:var(--ink-3);font-weight:600;letter-spacing:.02em}
+  .stat .v{font-size:22px;font-weight:800;letter-spacing:-.02em;margin-top:4px}
+  .stat .sub{font-size:11.5px;font-weight:600;margin-top:3px}
+  .up{color:var(--owe-neg)} .down{color:var(--accent)}
+  .chartcard{padding:16px}
+  .chartcard h4{margin:0 0 2px;font-size:14.5px;letter-spacing:-.01em}
+  .chartcard .cap{font-size:12px;color:var(--ink-3);margin-bottom:12px}
+  .chart-svg{width:100%;height:auto;display:block;overflow:visible}
+  .chart-svg text{fill:var(--ink-3);font-size:10px;font-weight:600}
+  .legend{display:flex;gap:14px;flex-wrap:wrap;margin-top:10px;font-size:12px;color:var(--ink-2);font-weight:600}
+  .legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:middle}
   .monthnav{display:flex;align-items:center;justify-content:center;gap:14px}
   .monthnav button{background:none;border:none;color:var(--ink-2);font-size:20px;padding:4px 10px;border-radius:12px;transition:.15s}
   .monthnav button:active{background:var(--surface);transform:scale(.94)}
@@ -362,7 +382,10 @@
   <header class="top">
     <div class="whoami">
       <div class="brand">Ours<span>.</span></div>
-      <button class="who-pill" id="whoBtn">I'm <b id="whoName">Garney</b> ▾</button>
+      <div style="display:flex;align-items:center;gap:8px">
+        <button class="who-pill" id="whoBtn">I'm <b id="whoName">Garney</b> ▾</button>
+        <button class="icon-btn" id="setBtn" aria-label="Settings"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M19 12a7 7 0 0 0-.1-1.2l2-1.6-2-3.4-2.4 1a7 7 0 0 0-2-1.2L14 3h-4l-.5 2.4a7 7 0 0 0-2 1.2l-2.4-1-2 3.4 2 1.6A7 7 0 0 0 5 12a7 7 0 0 0 .1 1.2l-2 1.6 2 3.4 2.4-1a7 7 0 0 0 2 1.2L10 21h4l.5-2.4a7 7 0 0 0 2-1.2l2.4 1 2-3.4-2-1.6c.06-.4.1-.8.1-1.2Z"/></svg></button>
+      </div>
     </div>
     <div class="monthnav">
       <button id="prevM" aria-label="Previous month">‹</button>
@@ -380,6 +403,8 @@
     <section class="screen" id="s-exp"></section>
     <!-- HISTORY -->
     <section class="screen" id="s-hist"></section>
+    <!-- INSIGHTS -->
+    <section class="screen" id="s-ins"></section>
     <!-- SETTINGS -->
     <section class="screen" id="s-set"></section>
     <section class="screen" id="s-setup"></section>
@@ -390,7 +415,7 @@
     <button class="tab" data-nav="exp"><svg viewBox="0 0 24 24"><path d="M4 5h16M4 12h16M4 19h10"/></svg>Expenses</button>
     <button class="tab add" id="addTab"><span class="fab"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span></button>
     <button class="tab" data-nav="hist"><svg viewBox="0 0 24 24"><path d="M12 8v4l3 2"/><circle cx="12" cy="12" r="9"/></svg>History</button>
-    <button class="tab" data-nav="set"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M19 12a7 7 0 0 0-.1-1.2l2-1.6-2-3.4-2.4 1a7 7 0 0 0-2-1.2L14 3h-4l-.5 2.4a7 7 0 0 0-2 1.2l-2.4-1-2 3.4 2 1.6A7 7 0 0 0 5 12a7 7 0 0 0 .1 1.2l-2 1.6 2 3.4 2.4-1a7 7 0 0 0 2 1.2L10 21h4l.5-2.4a7 7 0 0 0 2-1.2l2.4 1 2-3.4-2-1.6c.06-.4.1-.8.1-1.2Z"/></svg>Settings</button>
+    <button class="tab" data-nav="ins"><svg viewBox="0 0 24 24"><path d="M4 19V5M4 19h16"/><path d="M8 16l3.5-4 3 2.5L20 8"/></svg>Insights</button>
   </div></nav>
 </div>
 
@@ -435,6 +460,7 @@ function shiftMonth(key,d){ const [y,m]=key.split('-').map(Number); const dt=new
 
 /* ---- default catalog ---- */
 const DEFAULT_CATS = {
+  mortgage:{name:'Mortgage',group:'Property',active:true,order:0,color:'#2f8f8a',icon:'🏦'},
   elec:{name:'Electricity / JPS',group:'Utilities',active:true,order:1,color:'#e0a458',icon:'⚡'},
   water:{name:'Water / NWC',group:'Utilities',active:true,order:2,color:'#4a9bd1',icon:'💧'},
   internet:{name:'Internet / Digicel',group:'Utilities',active:true,order:3,color:'#c0504d',icon:'📶'},
@@ -449,8 +475,10 @@ const DEFAULT_CATS = {
   other:{name:'Other',group:'Other',active:true,order:12,color:'#9b968c',icon:'•'},
 };
 const DEFAULT_RECUR = {
+  mortgage_monthly:{name:'Mortgage',amount:35152,categoryId:'mortgage',
+    frequency:'monthly',dayOfMonth:1,defaultPayer:'garney',splitType:'fixed',split:{garneyAmount:0},active:true},
   jumeirah_monthly:{name:'Jumeirah Complex Maintenance',amount:20000,categoryId:'jumeirah',
-    frequency:'monthly',dayOfMonth:1,defaultPayer:'garney',splitType:'even',active:true},
+    frequency:'monthly',dayOfMonth:1,defaultPayer:'garney',splitType:'even',split:{},active:true},
 };
 const DEFAULT_CONFIG = { names:{garney:'Garney',gf:'Girlfriend'}, currency:'JMD', recurringDefaultPayer:'garney' };
 
@@ -513,7 +541,22 @@ async function sbLoadSettlements(){
   if(error) throw error;
   const m={}; (data||[]).forEach(r=>m[r.key]=Object.assign({key:r.key},r.data)); S.settlements=m;
 }
-async function loadAll(){ await sbLoadSettings(); await sbLoadExpenses(); await sbLoadSettlements(); cacheLocal(); }
+async function loadAll(){ await sbLoadSettings(); await migrateSettings(); await sbLoadExpenses(); await sbLoadSettlements(); cacheLocal(); }
+
+/* one-time, idempotent migrations for households created before a feature existed */
+async function migrateSettings(){
+  S.config.migrations = S.config.migrations || {};
+  let changed = false;
+  // v2: mortgage category + recurring (she repays the full amount)
+  if(!S.config.migrations.mortgage){
+    if(!S.categories.mortgage){ S.categories.mortgage = clone(DEFAULT_CATS.mortgage); }
+    if(!S.recurring.mortgage_monthly){ S.recurring.mortgage_monthly = clone(DEFAULT_RECUR.mortgage_monthly); }
+    S.config.migrations.mortgage = true; changed = true;
+  }
+  if(changed && connected()){
+    try{ await SB.from('settings').upsert({household:CFG.hh,data:{config:S.config,categories:S.categories,recurring:S.recurring}}); }catch(e){ /* non-fatal */ }
+  }
+}
 
 let rtT;
 function subscribeRealtime(){
@@ -565,7 +608,7 @@ async function ensureRecurring(){
     const day=String(Math.min(r.dayOfMonth||1,28)).padStart(2,'0');
     const exp={ id:genId, description:r.name, merchant:r.name, categoryId:r.categoryId, amount:round2(r.amount),
       currency:'JMD', date:key+'-'+day, month:key, paidBy:r.defaultPayer||S.config.recurringDefaultPayer||'garney',
-      splitType:r.splitType||'even', split:{}, notes:'Auto-generated recurring', recurringId:rid, addedBy:'system',
+      splitType:r.splitType||'even', split:(r.split?clone(r.split):{}), notes:'Auto-generated recurring', recurringId:rid, addedBy:'system',
       receiptPath:null, createdAt:Date.now(), updatedAt:Date.now() };
     await saveExpense(exp);
   }
@@ -596,6 +639,16 @@ function computeMonth(list){
 }
 function expensesFor(key){ return S.expenses.filter(e=>(e.month||monthKeyOf(e.date))===key).sort((a,b)=>(b.date||'').localeCompare(a.date||'')||b.createdAt-a.createdAt); }
 const nameOf = who => (S.config.names&&S.config.names[who])|| (who==='garney'?'Garney':'Girlfriend');
+function recurSplitLabel(r){
+  const t=r.splitType||'even';
+  if(t==='even') return '50 / 50';
+  if(t==='excluded') return 'not shared';
+  if(t==='full') return (nameOf(r.defaultPayer)+' covers 100%');
+  if(t==='fixed'){ const g=(r.split&&r.split.garneyAmount)||0;
+    if(g===0) return (nameOf(r.defaultPayer==='garney'?'gf':'garney')+' repays 100%'); return 'custom'; }
+  if(t==='pct') return 'custom %';
+  return '50 / 50';
+}
 
 /* ===========================================================================
    RENDER
@@ -606,6 +659,7 @@ function renderAll(){
   if(S.view==='home') renderHome();
   else if(S.view==='exp') renderExpenses();
   else if(S.view==='hist') renderHistory();
+  else if(S.view==='ins') renderInsights();
   else if(S.view==='set') renderSettings();
 }
 
@@ -729,6 +783,136 @@ function renderHistory(){
   $('#s-hist').querySelectorAll('[data-open]').forEach(el=>el.onclick=()=>{ S.month=el.dataset.open; go('exp'); });
 }
 
+/* ===========================================================================
+   INSIGHTS / TRENDS
+   =========================================================================== */
+function monthWindow(n){ const arr=[]; let k=S.month; for(let i=0;i<n;i++){ arr.unshift(k); k=shiftMonth(k,-1); } return arr; }
+function fmtK(n){ n=Math.round(n); if(Math.abs(n)>=1000) return (n/1000).toFixed(n%1000===0?0:1).replace(/\.0$/,'')+'k'; return String(n); }
+
+function renderInsights(){
+  const win = monthWindow(6);
+  const data = win.map(k=>{ const m=computeMonth(expensesFor(k)); return {key:k, label:new Date(k+'-01').toLocaleDateString('en-US',{month:'short'}), total:m.total, paidG:m.paidG, paidF:m.paidF, byCat:m.byCat, netG:m.netG}; });
+  const cur=data[data.length-1], prev=data[data.length-2];
+  const hasAny = data.some(d=>d.total>0);
+
+  // stats
+  const withData = data.filter(d=>d.total>0);
+  const avg = withData.length? round2(withData.reduce((s,d)=>s+d.total,0)/withData.length) : 0;
+  const delta = round2(cur.total - (prev?prev.total:0));
+  const pct = (prev&&prev.total>0)? Math.round(delta/prev.total*100) : null;
+  const year = S.month.slice(0,4);
+  const ytd = round2(S.expenses.filter(e=>(e.month||monthKeyOf(e.date)).slice(0,4)===year && (e.splitType||'even')!=='excluded').reduce((s,e)=>s+round2(e.amount),0));
+  // top category this month
+  const catsSorted = Object.entries(cur.byCat).sort((a,b)=>b[1]-a[1]);
+  const topCat = catsSorted[0];
+
+  if(!hasAny){
+    $('#s-ins').innerHTML = `<div class="sec-title tight">Insights</div>${emptyBlock('No spending yet to chart. Add a few expenses and your trends show up here.','📊')}`;
+    return;
+  }
+
+  // -- deltas phrasing --
+  const deltaCls = delta>0?'up':'down';
+  const deltaTxt = delta===0?'Same as last month'
+    : (delta>0?'▲ ':'▼ ')+money(Math.abs(delta))+(pct!=null?` (${Math.abs(pct)}%)`:'')+' vs last month';
+
+  // -- bar chart: total spend over window --
+  const totals = data.map(d=>d.total);
+  const barChart = svgBars(data.map(d=>d.label), totals, 'var(--accent)');
+
+  // -- grouped: who paid --
+  const whoChart = svgGrouped(data.map(d=>d.label),
+    data.map(d=>d.paidG), data.map(d=>d.paidF),
+    getCss('--accent'), getCss('--blob-2b')||'#4a9bd1');
+
+  // -- category trend: top 5 categories this month vs last --
+  const allCats = {};
+  [cur,prev||{byCat:{}}].forEach(d=>Object.entries(d.byCat||{}).forEach(([id,v])=>{allCats[id]=(allCats[id]||0)+v;}));
+  const topIds = Object.entries(allCats).sort((a,b)=>b[1]-a[1]).slice(0,5).map(x=>x[0]);
+  const maxCat = Math.max(1,...topIds.map(id=>Math.max(cur.byCat[id]||0,(prev&&prev.byCat[id])||0)));
+  const catRows = topIds.map(id=>{
+    const c=catMeta(id); const now=cur.byCat[id]||0; const was=(prev&&prev.byCat[id])||0;
+    return `<div style="padding:9px 0;border-bottom:1px solid var(--hair)">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:13.5px;font-weight:600"><span class="dot" style="display:inline-block;width:9px;height:9px;border-radius:2px;background:${c.color};margin-right:7px"></span>${esc(c.name)}</span>
+        <span style="font-size:13px;font-weight:700">${money(now)}</span>
+      </div>
+      <div class="bar" style="margin-top:6px"><i style="width:${Math.max(3,Math.round(now/maxCat*100))}%;background:${c.color}"></i></div>
+    </div>`;
+  }).join('');
+
+  $('#s-ins').innerHTML = `
+    <div class="sec-title tight">${monthLabel(S.month)} · insights</div>
+
+    <div class="stat-grid">
+      <div class="stat"><div class="k">This month</div><div class="v">${money(cur.total)}</div>
+        <div class="sub ${deltaCls}">${deltaTxt}</div></div>
+      <div class="stat"><div class="k">Avg / month (6 mo)</div><div class="v">${money(avg)}</div>
+        <div class="sub" style="color:var(--ink-3)">across ${withData.length} month${withData.length===1?'':'s'}</div></div>
+      <div class="stat"><div class="k">${year} year-to-date</div><div class="v">${money(ytd)}</div>
+        <div class="sub" style="color:var(--ink-3)">all shared spend</div></div>
+      <div class="stat"><div class="k">Top category</div><div class="v" style="font-size:18px">${topCat?esc(catMeta(topCat[0]).name):'—'}</div>
+        <div class="sub" style="color:var(--ink-3)">${topCat?money(topCat[1]):''}</div></div>
+    </div>
+
+    <div class="card chartcard" style="margin-top:12px">
+      <h4>Total spending</h4><div class="cap">Last 6 months</div>
+      ${barChart}
+    </div>
+
+    <div class="card chartcard" style="margin-top:12px">
+      <h4>Who paid</h4><div class="cap">Amount each of you fronted per month</div>
+      ${whoChart}
+      <div class="legend"><span><i style="background:${getCss('--accent')}"></i>${esc(nameOf('garney'))}</span><span><i style="background:${getCss('--blob-2b')||'#4a9bd1'}"></i>${esc(nameOf('gf'))}</span></div>
+    </div>
+
+    <div class="card chartcard" style="margin-top:12px">
+      <h4>Top categories</h4><div class="cap">This month${prev&&prev.total>0?' (bar scaled vs last month too)':''}</div>
+      ${catRows || emptyBlock('No categories yet','•')}
+    </div>
+
+    <div class="note">Trends follow the month shown in the header — use ‹ › to scroll the 6-month window.</div>
+  `;
+}
+
+function getCss(name){ try{ return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }catch{ return ''; } }
+
+/* Simple responsive SVG bar chart (single series) */
+function svgBars(labels, values, barColor){
+  const W=320,H=170, padL=8,padR=8,padB=22,padT=18;
+  const max=Math.max(1,...values);
+  const n=values.length; const gap=10;
+  const bw=(W-padL-padR-gap*(n-1))/n;
+  let bars='', lbls='';
+  values.forEach((v,i)=>{
+    const h=max>0? (H-padB-padT)*(v/max) : 0;
+    const x=padL+i*(bw+gap); const y=H-padB-h;
+    bars+=`<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${bw.toFixed(1)}" height="${Math.max(0,h).toFixed(1)}" rx="5" fill="${barColor}"></rect>`;
+    if(v>0) bars+=`<text x="${(x+bw/2).toFixed(1)}" y="${(y-5).toFixed(1)}" text-anchor="middle" style="font-size:9px;fill:var(--ink-2)">${fmtK(v)}</text>`;
+    lbls+=`<text x="${(x+bw/2).toFixed(1)}" y="${H-6}" text-anchor="middle">${labels[i]}</text>`;
+  });
+  return `<svg class="chart-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" role="img">${bars}${lbls}</svg>`;
+}
+
+/* Grouped two-series bars */
+function svgGrouped(labels, a, b, colA, colB){
+  const W=320,H=170, padL=8,padR=8,padB=22,padT=18;
+  const max=Math.max(1,...a,...b);
+  const n=labels.length; const groupGap=12;
+  const gw=(W-padL-padR-groupGap*(n-1))/n;
+  const bw=(gw-4)/2;
+  let out='',lbls='';
+  for(let i=0;i<n;i++){
+    const gx=padL+i*(gw+groupGap);
+    [[a[i],colA,0],[b[i],colB,bw+4]].forEach(([v,c,off])=>{
+      const h=(H-padB-padT)*(v/max); const x=gx+off; const y=H-padB-h;
+      out+=`<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${bw.toFixed(1)}" height="${Math.max(0,h).toFixed(1)}" rx="4" fill="${c}"></rect>`;
+    });
+    lbls+=`<text x="${(gx+gw/2).toFixed(1)}" y="${H-6}" text-anchor="middle">${labels[i]}</text>`;
+  }
+  return `<svg class="chart-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" role="img">${out}${lbls}</svg>`;
+}
+
 function renderSettings(){
   const cats=Object.entries(S.categories).sort((a,b)=>(a[1].order||99)-(b[1].order||99));
   const rec=Object.entries(S.recurring);
@@ -746,7 +930,7 @@ function renderSettings(){
     <div class="sec-title">Recurring expenses</div>
     <div class="card">
       ${rec.map(([id,r])=>`<div class="setrow">
-        <div><div class="k">${esc(r.name)}</div><div class="d">${money(r.amount)} · monthly · ${catMeta(r.categoryId).name} · ${nameOf(r.defaultPayer)} pays</div></div>
+        <div><div class="k">${esc(r.name)}</div><div class="d">${money(r.amount)} · monthly · ${nameOf(r.defaultPayer)} pays · ${recurSplitLabel(r)}</div></div>
         <button class="switch ${r.active?'on':''}" data-recur="${id}"><i></i></button>
       </div>`).join('')}
       <div class="setrow"><div class="d">Auto-created on the 1st each month when the app is opened. Disabling keeps past records.</div></div>
@@ -1126,6 +1310,7 @@ function wireStatic(){
   $('#prevM').onclick=()=>{ S.month=shiftMonth(S.month,-1); renderAll(); };
   $('#nextM').onclick=()=>{ S.month=shiftMonth(S.month,1); renderAll(); };
   $('#whoBtn').onclick=pickWho;
+  const sb=$('#setBtn'); if(sb) sb.onclick=()=>go('set');
   $('#sheetClose').onclick=closeSheet;
   $('#sheetBg').onclick=closeSheet;
 }
