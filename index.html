@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Ours — Apartment Expenses</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <style>
   :root{
     box-sizing:border-box;
@@ -962,7 +963,7 @@ function renderSettings(){
   const cats=Object.entries(S.categories).sort((a,b)=>(a[1].order||99)-(b[1].order||99));
   const rec=Object.entries(S.recurring);
   const mode = connected() ? ('Connected · household “'+esc(CFG.hh)+'” ✓') : 'Not connected — set up sync';
-  const aiStatus = 'Manual entry (auto-reading coming later)';
+  const aiStatus = 'On-device OCR (free · private)';
   $('#s-set').innerHTML = `
     <div class="sec-title tight">People</div>
     <div class="card">
@@ -1072,7 +1073,7 @@ function renderForm(v){
     <div class="drop" id="drop">
       <div style="font-size:26px">🧾</div>
       <div style="font-weight:650;margin-top:4px">Snap or upload a receipt</div>
-      <div style="font-size:12px;color:var(--ink-3);margin-top:2px">AI reads the provider, date & total for you</div>
+      <div style="font-size:12px;color:var(--ink-3);margin-top:2px">Reads the provider, date & total on your device</div>
       <div class="row">
         <button class="btn sm" id="camBtn">📷 Take photo</button>
         <button class="btn sm" id="upBtn">⬆ Upload</button>
@@ -1187,8 +1188,86 @@ async function handleReceipt(file){
     }catch(e){ if(zone) zone.innerHTML=`<div class="ai"><h4>🧾 Receipt</h4><div style="font-size:12.5px;color:var(--warn)">Couldn’t upload the file (${esc((e&&(e.message||e.code))||'error')}). You can still save the expense; add the receipt later.</div></div>`; S.pendingReceipt.uploading=false; return; }
   }
   S.pendingReceipt.uploading=false;
-  if(zone) zone.innerHTML=`<div class="ai"><h4>🧾 Receipt attached ✓</h4>
-    <div style="font-size:12.5px;color:var(--ink-2)">Enter the details below. (Automatic receipt reading is coming in a later update.)</div></div>`;
+
+  // ---- On-device OCR (Tesseract.js) — images only, free & private ----
+  if(!zone) return;
+  const canOcr = /image/i.test(file.type) && typeof window.Tesseract!=='undefined' && window.Tesseract.recognize;
+  if(!canOcr){
+    zone.innerHTML=`<div class="ai"><h4>🧾 Receipt attached ✓</h4>
+      <div style="font-size:12.5px;color:var(--ink-2)">${/image/i.test(file.type)?'Auto-reading isn’t available right now — enter the details below.':'PDF stored. Reading works on photos — enter the details below.'}</div></div>`;
+    return;
+  }
+  zone.innerHTML=`<div class="ai"><h4><span class="spin"></span> Reading receipt… <span id="ocrPct"></span></h4>
+    <div style="font-size:12px;color:var(--ink-2)">On-device · stays private to your phone</div></div>`;
+  try{
+    const res = await window.Tesseract.recognize(file,'eng',{ logger:m=>{ if(m&&m.status==='recognizing text'){ const p=$('#ocrPct'); if(p) p.textContent=Math.round((m.progress||0)*100)+'%'; } } });
+    const text = (res&&res.data&&res.data.text)||'';
+    renderOcrResult(parseReceiptText(text, S.categories));
+  }catch(e){
+    zone.innerHTML=`<div class="ai"><h4>🧾 Couldn’t auto-read</h4>
+      <div style="font-size:12.5px;color:var(--ink-2)">No problem — enter the details below.</div></div>`;
+  }
+}
+
+/* ---- receipt text parsing (heuristic; never invents a total) ---- */
+function pad2(n){ return String(n).padStart(2,'0'); }
+function parseReceiptDate(raw){
+  let m=raw.match(/\b(20\d{2})[-\/.](0?[1-9]|1[0-2])[-\/.](0?[1-9]|[12]\d|3[01])\b/);
+  if(m) return `${m[1]}-${pad2(m[2])}-${pad2(m[3])}`;
+  m=raw.match(/\b(0?[1-9]|[12]\d|3[01])[\/.](0?[1-9]|1[0-2])[\/.](20\d{2}|\d{2})\b/); // DD/MM/YYYY (Jamaica)
+  if(m){ const y=m[3].length===2?('20'+m[3]):m[3]; return `${y}-${pad2(m[2])}-${pad2(m[1])}`; }
+  const MON={jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12};
+  m=raw.match(/\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s+(0?[1-9]|[12]\d|3[01]),?\s+(20\d{2})\b/i);
+  if(m) return `${m[3]}-${pad2(MON[m[1].toLowerCase().slice(0,3)])}-${pad2(m[2])}`;
+  m=raw.match(/\b(0?[1-9]|[12]\d|3[01])\s+(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s+(20\d{2})\b/i);
+  if(m) return `${m[3]}-${pad2(MON[m[2].toLowerCase().slice(0,3)])}-${pad2(m[1])}`;
+  return null;
+}
+function parseReceiptText(text, cats){
+  const raw=String(text||''); const hay=raw.replace(/\s+/g,' ');
+  const lines=raw.split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
+  // category via merchant map
+  let category=''; for(const [re,id] of MERCHANT_MAP){ if(re.test(hay)){ category=id; break; } }
+  if(!category || !cats[category]) category='other';
+  // merchant name
+  let merchant=''; const known=[[/jamaica public service|\bjps\b/i,'JPS'],[/national water commission|\bnwc\b/i,'NWC'],[/digicel/i,'Digicel'],[/\bflow\b/i,'Flow'],[/progressive/i,'Progressive'],[/megamart/i,'MegaMart'],[/hi-?lo/i,'Hi-Lo'],[/pricesmart/i,'PriceSmart'],[/loshusan/i,'Loshusan'],[/general food/i,'General Food']];
+  for(const [re,nm] of known){ if(re.test(hay)){ merchant=nm; break; } }
+  if(!merchant && lines.length) merchant=lines[0].slice(0,40);
+  // amount
+  const numRe=/((?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d{2})?)/g;
+  const KEY=/(total\s*due|amount\s*due|balance\s*due|total\s*amount|amount\s*payable|pay\s*this\s*amount|grand\s*total|total\s*payable|current\s*charges|\btotal\b|\bbalance\b|\bdue\b)/i;
+  const toNum=s=>parseFloat(s.replace(/,/g,''));
+  let amount=null, amtConf=0, keyCands=[];
+  for(const l of lines){ if(KEY.test(l)){ let m; numRe.lastIndex=0; while((m=numRe.exec(l))){ const v=toNum(m[1]); if(isFinite(v)&&v>0) keyCands.push(v); } } }
+  if(keyCands.length){ amount=Math.max(...keyCands); amtConf=0.85; }
+  if(amount==null){ const dec=[]; let m; numRe.lastIndex=0; while((m=numRe.exec(raw))){ if(/\.\d{2}$/.test(m[1])){ const v=toNum(m[1]); if(isFinite(v)&&v>0) dec.push(v); } } if(dec.length){ amount=Math.max(...dec); amtConf=0.5; } }
+  if(amount!=null && amount>100000000){ amount=null; amtConf=0; }
+  const date=parseReceiptDate(raw);
+  const description = (cats[category] && category!=='other') ? cats[category].name : (merchant||'Expense');
+  return { merchant, description, date, amount, category, confidence: amount!=null?amtConf:0.2 };
+}
+function renderOcrResult(d){
+  const zone=$('#aiZone'); if(!zone) return;
+  const amountKnown = typeof d.amount==='number' && isFinite(d.amount) && d.amount>0;
+  const conf = Math.round((d.confidence||0)*100);
+  zone.innerHTML=`<div class="ai">
+    <h4>✨ Here’s what I found</h4>
+    <div class="kv"><span>Provider</span><b>${esc(d.merchant||'—')}</b></div>
+    <div class="kv"><span>Date</span><b>${d.date?fmtDate(d.date)+', '+d.date.slice(0,4):'—'}</b></div>
+    <div class="kv"><span>Amount</span><b>${amountKnown?money(d.amount):'<span style="color:var(--warn)">not found</span>'}</b></div>
+    <div class="kv"><span>Category</span><b>${esc(catMeta(d.category).name)}</b></div>
+    ${!amountKnown?`<div class="conf" style="color:var(--warn)">Couldn’t confidently read the total — please enter it manually below.</div>`:`<div class="conf">Read on your device · always check before saving${conf?` (${conf}% confident)`:''}</div>`}
+    <div style="display:flex;gap:8px;margin-top:12px"><button class="btn primary sm block" id="ocrApply">Use these details</button></div>
+    <div class="conf" style="text-align:center">You can edit everything below before saving.</div>
+  </div>`;
+  const ap=$('#ocrApply'); if(ap) ap.onclick=()=>{
+    if(d.description && $('#f_desc')) $('#f_desc').value=d.description;
+    if(d.category && $('#f_cat')) $('#f_cat').value=d.category;
+    if(d.date && /^\d{4}-\d{2}-\d{2}$/.test(d.date) && $('#f_date')) $('#f_date').value=d.date;
+    if(amountKnown && $('#f_amount')) $('#f_amount').value=d.amount;
+    toast('Details filled — review & save');
+    if(!amountKnown && $('#f_amount')) $('#f_amount').focus();
+  };
 }
 function collectForm(){
   return {

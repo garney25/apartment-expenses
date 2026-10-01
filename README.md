@@ -15,8 +15,14 @@ how much this month.**
   settlement shown front-and-centre.
 - **Add in under 30 seconds** — amount, category, date, paid-by, split, notes.
 - **Receipts** — snap a photo or upload an image/PDF; stored against the expense.
-- **Smart split** — 50/50, payer-pays-100%, or excluded from settlement.
-- **Recurring expenses** — the JMD 20,000 Jumeirah maintenance auto-creates each month.
+- **On-device receipt OCR** — reads the provider, date and total from a receipt photo
+  locally (Tesseract.js, in-browser), suggests a category, and shows them for you to
+  confirm before saving. Free, no API key, and the image never leaves your phone for
+  reading. Never invents a total — flags it for manual entry when unsure.
+- **Smart split** — 50/50, payer-pays-100%, full-repayment (e.g. mortgage), or excluded.
+- **Recurring expenses** — Jumeirah maintenance (JMD 20,000) and mortgage (JMD 35,152,
+  full repayment) auto-create each month; backfill into past months in one tap.
+- **Insights** — 6-month spend trend, who-paid chart, year-to-date, top categories.
 - **Settlement** — one tap to mark a month settled; history is preserved and never
   rewrites the underlying expenses. Editing after settlement warns and recalculates.
 - **Shared & live** — both phones see the same data in real time (Supabase).
@@ -29,6 +35,8 @@ how much this month.**
 - Single self-contained `index.html` — vanilla JS, no build step.
 - [Supabase](https://supabase.com) free tier for the shared database, realtime, and
   receipt file storage.
+- [Tesseract.js](https://tesseract.projectnaptha.com/) for in-browser receipt OCR (no
+  server, no key).
 - Hosted on GitHub Pages.
 
 ## Setup (once, ~10 min)
@@ -54,5 +62,6 @@ Supabase Auth can be layered on later.
 ## Roadmap
 
 Custom split percentages, individual/non-shared expenses, multiple properties, budgets,
-monthly spending trends, WhatsApp settlement sharing, bill reminders, and AI receipt
-reading (OCR) — the data model already accommodates these.
+WhatsApp settlement sharing, and bill reminders — the data model already accommodates
+these. (Higher-accuracy cloud OCR via a Supabase Edge Function is an optional future
+upgrade over the free on-device reader.)

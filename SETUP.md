@@ -44,6 +44,10 @@ No Netlify or other host needed. (The source is one self-contained file, `index.
 - **Cost:** free. Supabase's free tier is far more than a two-person expense tracker needs.
 - **Security:** the anon key is public by design; access is governed by the policies in the SQL. Because it's your private project, only your data lives there. Keep the invite link private. Want stronger (email sign-in, per-user rules)? Ask me and I'll add Supabase Auth.
 - **Receipts:** photo/PDF uploads are stored in your Supabase `receipts` bucket and attached to each expense.
-- **Automatic receipt reading (AI OCR):** not in this version. Outside Claude there's no free built-in AI to lean on; adding it means an API key + a small Supabase Edge Function. Say the word and I'll build that step next.
+- **Receipt reading (OCR):** runs on your device, free, no setup — snap a bill photo and
+  it reads the provider, date and total for you to confirm. First receipt downloads a
+  small reader file (~a few MB, then cached). Works on photos; PDFs are stored but entered
+  manually. For even higher accuracy later, a cloud reader can be added via a Supabase
+  Edge Function.
 - **Settlement math:** the four required test cases + rounding are verified in-app (Settings → Settlement self-test → Run).
 - **Trouble?** Settings → **Sync → Test** tells you if the app can reach your database, and shows the exact error if not (usually a wrong URL/key or the SQL wasn't run).
